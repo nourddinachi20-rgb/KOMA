@@ -14,6 +14,7 @@ import {
 import { useAppStore } from '../store/useAppStore';
 import type { UiLanguage, UiTheme } from '../types';
 import { useT } from '../utils/i18n';
+import { DEFAULT_SYNC_SERVER_URL } from '../utils/syncClient';
 import { ACCENT_PRESETS } from '../utils/theme';
 
 type SectionKey = 'account' | 'appearance' | 'reader' | 'backup' | 'trackers' | 'about';
@@ -51,6 +52,9 @@ export function SettingsView() {
   const [tokenInput, setTokenInput] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [syncServerInput, setSyncServerInput] = useState(() => settings.syncServerUrl ?? '');
+  const [showCustomServer, setShowCustomServer] = useState(() =>
+    Boolean(settings.syncServerUrl && settings.syncServerUrl !== DEFAULT_SYNC_SERVER_URL),
+  );
   const [syncUserInput, setSyncUserInput] = useState(() => settings.syncUsername ?? '');
   const [syncPassInput, setSyncPassInput] = useState('');
   const [cacheStats, setCacheStats] = useState<{ files: number; bytes: number } | null>(null);
@@ -218,8 +222,8 @@ export function SettingsView() {
                       </div>
                       <div className="text-[11px] text-zinc-400">
                         {syncLastAt > 0
-                          ? `Last synced ${new Date(syncLastAt).toLocaleTimeString()}`
-                          : 'Connected'}
+                          ? `Auto-sync active · Last synced ${new Date(syncLastAt).toLocaleTimeString()}`
+                          : 'Auto-sync active across your devices'}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -247,12 +251,6 @@ export function SettingsView() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <input
-                    value={syncServerInput}
-                    onChange={(e) => setSyncServerInput(e.target.value)}
-                    placeholder="Sync Server URL (e.g. https://koma-zero-knowledge-sync...workers.dev)"
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none"
-                  />
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <input
                       value={syncUserInput}
@@ -268,35 +266,57 @@ export function SettingsView() {
                       className="rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none"
                     />
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={syncBusy || !syncUserInput.trim() || !syncPassInput}
-                      onClick={() =>
-                        void syncSignIn(syncServerInput, syncUserInput, syncPassInput)
-                          .then(() => setSyncPassInput(''))
-                          .catch((e) =>
-                            notify(e instanceof Error ? e.message : 'Sign in failed', 'error'),
-                          )
+                  {(showCustomServer || !DEFAULT_SYNC_SERVER_URL) && (
+                    <input
+                      value={syncServerInput}
+                      onChange={(e) => setSyncServerInput(e.target.value)}
+                      placeholder={
+                        DEFAULT_SYNC_SERVER_URL ||
+                        'Sync Server URL (e.g. https://koma-zero-knowledge-sync...workers.dev)'
                       }
-                      className="accent-bg rounded-full px-5 py-2 text-xs font-semibold disabled:opacity-40 cursor-pointer"
-                    >
-                      {syncBusy ? 'Please wait...' : 'Sign In & Sync'}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={syncBusy || !syncUserInput.trim() || !syncPassInput}
-                      onClick={() =>
-                        void syncCreateAccount(syncServerInput, syncUserInput, syncPassInput)
-                          .then(() => setSyncPassInput(''))
-                          .catch((e) =>
-                            notify(e instanceof Error ? e.message : 'Register failed', 'error'),
-                          )
-                      }
-                      className="rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-xs font-medium text-white hover:bg-white/10 disabled:opacity-40 cursor-pointer"
-                    >
-                      Create Account
-                    </button>
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none"
+                    />
+                  )}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={syncBusy || !syncUserInput.trim() || !syncPassInput}
+                        onClick={() =>
+                          void syncSignIn(syncServerInput, syncUserInput, syncPassInput)
+                            .then(() => setSyncPassInput(''))
+                            .catch((e) =>
+                              notify(e instanceof Error ? e.message : 'Sign in failed', 'error'),
+                            )
+                        }
+                        className="accent-bg rounded-full px-5 py-2 text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                      >
+                        {syncBusy ? 'Please wait...' : 'Sign In & Sync'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={syncBusy || !syncUserInput.trim() || !syncPassInput}
+                        onClick={() =>
+                          void syncCreateAccount(syncServerInput, syncUserInput, syncPassInput)
+                            .then(() => setSyncPassInput(''))
+                            .catch((e) =>
+                              notify(e instanceof Error ? e.message : 'Register failed', 'error'),
+                            )
+                        }
+                        className="rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-xs font-medium text-white hover:bg-white/10 disabled:opacity-40 cursor-pointer"
+                      >
+                        Create Account
+                      </button>
+                    </div>
+                    {DEFAULT_SYNC_SERVER_URL && (
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomServer((v) => !v)}
+                        className="text-[11px] text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                      >
+                        {showCustomServer ? 'Hide custom server' : 'Use custom server'}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

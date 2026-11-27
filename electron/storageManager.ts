@@ -92,6 +92,8 @@ export interface AppSettings {
   pendingWhatsNewNotes: string;
   syncServerUrl?: string;
   syncUsername?: string;
+  syncAuthHash?: string;
+  syncKeyJwk?: string;
 }
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -138,6 +140,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   pendingWhatsNewNotes: '',
   syncServerUrl: '',
   syncUsername: '',
+  syncAuthHash: '',
+  syncKeyJwk: '',
 };
 
 const DEFAULT_STATS: ReadingStats = {

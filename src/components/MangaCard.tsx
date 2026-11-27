@@ -10,6 +10,7 @@ interface MangaCardProps {
   progressPercent?: number;
   badge?: string;
   broken?: boolean;
+  showSource?: boolean;
   onClick?: () => void;
   onQuickPlay?: () => void;
   compact?: boolean;
@@ -21,6 +22,7 @@ export const MangaCard = memo(function MangaCard({
   progressPercent,
   badge,
   broken = false,
+  showSource = true,
   onClick,
   onQuickPlay,
   compact = false,
@@ -154,16 +156,18 @@ export const MangaCard = memo(function MangaCard({
         )}
 
         <div className="pointer-events-none absolute inset-x-2 top-2 flex items-start justify-between gap-1">
-          <span
-            className={`rounded-md border px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${
-              broken
-                ? 'border-rose-500/40 bg-rose-950/90 text-rose-200'
-                : 'border-white/10 bg-black/80 text-zinc-300'
-            }`}
-          >
-            {broken ? 'Broken' : manga.source === 'LOCAL' ? 'CBZ' : manga.source.slice(0, 10)}
-          </span>
-          <div className="flex items-center gap-1">
+          {(broken || showSource) && (
+            <span
+              className={`rounded-md border px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${
+                broken
+                  ? 'border-rose-500/40 bg-rose-950/90 text-rose-200'
+                  : 'border-white/10 bg-black/80 text-zinc-300'
+              }`}
+            >
+              {broken ? 'Broken' : manga.source === 'LOCAL' ? 'CBZ' : manga.source.slice(0, 10)}
+            </span>
+          )}
+          <div className="ml-auto flex items-center gap-1">
             {unread > 0 && (
               <span className="accent-bg rounded-md px-1.5 py-0.5 font-mono-tech text-[9px] font-bold">
                 +{unread}

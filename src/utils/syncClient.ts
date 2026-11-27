@@ -7,6 +7,8 @@ import {
   type SyncCredentials,
 } from './syncCrypto';
 
+export const DEFAULT_SYNC_SERVER_URL = 'https://koma-zero-knowledge-sync.koma-virtualdrum.workers.dev';
+
 export interface SyncVaultPayload {
   categories: Category[];
   library: LibraryEntry[];
@@ -15,12 +17,17 @@ export interface SyncVaultPayload {
   syncedAt: number;
 }
 
-function cleanServerUrl(url: string): string {
-  const trimmed = url.trim().replace(/\/+$/, '');
-  if (!trimmed) {
-    throw new Error('Enter your Sync Server URL first (see sync-worker/README.md to host free in 1 minute).');
+export function resolveSyncServerUrl(url?: string): string {
+  const trimmed = (url ?? '').trim().replace(/\/+$/, '');
+  return trimmed || DEFAULT_SYNC_SERVER_URL;
+}
+
+function cleanServerUrl(url?: string): string {
+  const resolved = resolveSyncServerUrl(url);
+  if (!resolved) {
+    throw new Error('Sync server is not configured. Open "Custom sync server" or wait for the default server.');
   }
-  return trimmed;
+  return resolved;
 }
 
 export async function remoteCreateAccount(
@@ -77,6 +84,33 @@ export async function remoteSignInAndPull(
     ? await decryptVaultData<SyncVaultPayload>(creds, data.vault)
     : null;
   return { creds, payload, updatedAt: data.updatedAt ?? 0 };
+}
+
+export async function remotePullVault(
+  serverUrl: string | undefined,
+  creds: SyncCredentials,
+): Promise<{ payload: SyncVaultPayload | null; updatedAt: number }> {
+  const base = cleanServerUrl(serverUrl);
+  const res = await fetch(`${base}/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: creds.username,
+      authHash: creds.authHash,
+    }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    vault?: EncryptedVaultBlob | null;
+    updatedAt?: number;
+  };
+  if (!res.ok) {
+    throw new Error(data.error || `Sync pull failed (${res.status})`);
+  }
+  const payload = data.vault
+    ? await decryptVaultData<SyncVaultPayload>(creds, data.vault)
+    : null;
+  return { payload, updatedAt: data.updatedAt ?? 0 };
 }
 
 export async function remotePushVault(

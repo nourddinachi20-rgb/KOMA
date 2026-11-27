@@ -237,6 +237,8 @@ export interface AppSettings {
   pendingWhatsNewNotes: string;
   syncServerUrl?: string;
   syncUsername?: string;
+  syncAuthHash?: string;
+  syncKeyJwk?: string;
 }
 
 export interface UpdateCheckResult {

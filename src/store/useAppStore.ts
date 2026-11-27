@@ -34,11 +34,13 @@ import {
 } from '../utils/backupImporter';
 import {
   remoteCreateAccount,
+  remotePullVault,
   remotePushVault,
   remoteSignInAndPull,
+  resolveSyncServerUrl,
   type SyncVaultPayload,
 } from '../utils/syncClient';
-import type { SyncCredentials } from '../utils/syncCrypto';
+import { restoreSyncCredentials, type SyncCredentials } from '../utils/syncCrypto';
 import { applyCustomizationToDocument } from '../utils/theme';
 
 export const HOUR_MS = 60 * 60 * 1000;
@@ -209,6 +211,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   pendingWhatsNewNotes: '',
   syncServerUrl: '',
   syncUsername: '',
+  syncAuthHash: '',
+  syncKeyJwk: '',
 };
 
 const ALLOWED_LOCALES = new Set(['en', 'fr', 'ar', '']);
@@ -216,6 +220,72 @@ const HOME_CACHE_VERSION = 2;
 const HOME_NOISY_SOURCES = new Set(['MANGAPILL']);
 const inFlightDetails = new Map<string, Promise<Manga | null>>();
 const inFlightPages = new Map<string, Promise<string[]>>();
+let autoSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function mergeAndPersistVault(
+  localCategories: Category[],
+  localLibrary: LibraryEntry[],
+  localHistory: HistoryEntry[],
+  payload: SyncVaultPayload,
+) {
+  const catMap = new Map<string, Category>();
+  for (const c of localCategories) catMap.set(c.id, c);
+  for (const c of payload.categories ?? []) if (!catMap.has(c.id)) catMap.set(c.id, c);
+
+  const libMap = new Map<string, LibraryEntry>();
+  for (const l of localLibrary) libMap.set(l.key, l);
+  for (const l of payload.library ?? []) {
+    const prev = libMap.get(l.key);
+    if (!prev) {
+      libMap.set(l.key, l);
+    } else {
+      const readIds = Array.from(
+        new Set([...(prev.readChapterIds ?? []), ...(l.readChapterIds ?? [])]),
+      );
+      libMap.set(l.key, {
+        ...(l.lastReadAt && (!prev.lastReadAt || l.lastReadAt > prev.lastReadAt) ? l : prev),
+        categoryIds: Array.from(new Set([...prev.categoryIds, ...l.categoryIds])),
+        readChapterIds: readIds,
+      });
+    }
+  }
+
+  const histMap = new Map<string, HistoryEntry>();
+  for (const h of localHistory) histMap.set(h.key, h);
+  for (const h of payload.history ?? []) {
+    const prev = histMap.get(h.key);
+    if (!prev || h.updatedAt > prev.updatedAt) histMap.set(h.key, h);
+  }
+
+  await window.noctis.applyBackupData({
+    categories: Array.from(catMap.values()),
+    library: Array.from(libMap.values()),
+    history: Array.from(histMap.values()).sort((a, b) => b.updatedAt - a.updatedAt),
+  });
+}
+
+function scheduleAutoSync() {
+  if (autoSyncTimer) clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(() => {
+    autoSyncTimer = null;
+    const state = useAppStore.getState();
+    const resolvedUrl = resolveSyncServerUrl(state.settings.syncServerUrl);
+    if (!state.syncSession || !resolvedUrl) return;
+    void remotePushVault(resolvedUrl, state.syncSession, {
+      categories: state.categories,
+      library: state.library,
+      history: state.history,
+      stats: state.stats,
+      syncedAt: Date.now(),
+    })
+      .then((ts) => {
+        useAppStore.setState({ syncLastAt: ts });
+      })
+      .catch(() => {
+        // Silent failure; next change or manual Sync Now retries
+      });
+  }, 2500);
+}
 
 export const useAppStore = create<AppState>((set, get) => ({
   bootStage: 'hydrating',
@@ -610,6 +680,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
     applyCustomizationToDocument(mergedSettings);
 
+    let restoredSync: SyncCredentials | null = null;
+    if (mergedSettings.syncUsername && mergedSettings.syncAuthHash && mergedSettings.syncKeyJwk) {
+      try {
+        const jwk = JSON.parse(mergedSettings.syncKeyJwk) as JsonWebKey;
+        restoredSync = await restoreSyncCredentials(
+          mergedSettings.syncUsername,
+          mergedSettings.syncAuthHash,
+          jwk,
+        );
+      } catch {
+        restoredSync = null;
+      }
+    }
+
     set({
       categories,
       library,
@@ -621,6 +705,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       settings: mergedSettings,
       engineStatus,
       appVersion,
+      syncSession: restoredSync,
       tutorialOpen: needsTutorial,
       showWhatsNew: needsWhatsNew,
       bootStage: engineStatus.ready ? (cacheIsFresh ? 'ready' : 'warming') : 'engine',
@@ -633,6 +718,29 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         : {}),
     });
+
+    if (restoredSync && resolveSyncServerUrl(mergedSettings.syncServerUrl)) {
+      void (async () => {
+        try {
+          const { payload, updatedAt } = await remotePullVault(
+            mergedSettings.syncServerUrl,
+            restoredSync,
+          );
+          if (payload) {
+            await mergeAndPersistVault(
+              get().categories,
+              get().library,
+              get().history,
+              payload,
+            );
+            await get().refreshAllData();
+          }
+          set({ syncLastAt: updatedAt || Date.now() });
+        } catch {
+          // Silent retry on next mutation or manual sync
+        }
+      })();
+    }
 
     api.onDownloadProgress(({ key, done, total }) => {
       set((s) => ({
@@ -777,6 +885,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (r.synced) get().notify(`Synced Ch. ${r.progress} to AniList`, 'success');
       });
     }
+    scheduleAutoSync();
   },
 
   markPreviousChaptersRead: async (manga, upToChapterId) => {
@@ -800,6 +909,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     set({ library });
     get().notify('Marked previous chapters as read', 'info');
+    scheduleAutoSync();
   },
 
   migrateLibraryManga: async (oldKey, newManga) => {
@@ -874,6 +984,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (shouldUpdateSelected) {
       get().notify(`Migrated to ${newFull.source}`, 'success');
     }
+    scheduleAutoSync();
   },
 
   recordReadingPulse: async (pagesDelta, chapterCompleted, tags) => {
@@ -933,6 +1044,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ library });
       get().notify(`Added "${manga.title}" to Library`, 'success');
     }
+    scheduleAutoSync();
   },
 
   updateLibraryCategories: async (key, categoryIds) => {
@@ -940,16 +1052,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!existing) return;
     const library = await window.noctis.upsertLibrary({ ...existing, categoryIds });
     set({ library });
+    scheduleAutoSync();
   },
 
   saveCategories: async (categories) => {
     const saved = await window.noctis.saveCategories(categories);
     set({ categories: saved });
+    scheduleAutoSync();
   },
 
   recordHistory: async (entry) => {
     const history = await window.noctis.upsertHistory(entry);
     set({ history });
+    scheduleAutoSync();
   },
 
   removeHistory: async (key) => {
@@ -1123,6 +1238,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       `Imported ${label} backup: ${addedLib} new series (${parsed.library.length} total)`,
       'success',
     );
+    scheduleAutoSync();
 
     return {
       ok: true,
@@ -1145,8 +1261,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         stats: state.stats,
         syncedAt: Date.now(),
       };
-      const creds = await remoteCreateAccount(serverUrl, username, password, payload);
-      await get().updateSettings({ syncServerUrl: serverUrl.trim(), syncUsername: creds.username });
+      const resolvedUrl = resolveSyncServerUrl(serverUrl);
+      const creds = await remoteCreateAccount(resolvedUrl, username, password, payload);
+      await get().updateSettings({
+        syncServerUrl: serverUrl.trim(),
+        syncUsername: creds.username,
+        syncAuthHash: creds.authHash,
+        syncKeyJwk: JSON.stringify(creds.keyJwk),
+      });
       set({ syncSession: creds, syncLastAt: payload.syncedAt });
       get().notify(`Account "${creds.username}" created (End-to-End Encrypted)`, 'success');
     } finally {
@@ -1157,50 +1279,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   syncSignIn: async (serverUrl, username, password) => {
     set({ syncBusy: true });
     try {
+      const resolvedUrl = resolveSyncServerUrl(serverUrl);
       const { creds, payload, updatedAt } = await remoteSignInAndPull(
-        serverUrl,
+        resolvedUrl,
         username,
         password,
       );
       if (payload) {
-        // Merge remote encrypted vault cleanly with local library/categories/history
-        const catMap = new Map<string, Category>();
-        for (const c of get().categories) catMap.set(c.id, c);
-        for (const c of payload.categories ?? []) if (!catMap.has(c.id)) catMap.set(c.id, c);
-
-        const libMap = new Map<string, LibraryEntry>();
-        for (const l of get().library) libMap.set(l.key, l);
-        for (const l of payload.library ?? []) {
-          const prev = libMap.get(l.key);
-          if (!prev) {
-            libMap.set(l.key, l);
-          } else {
-            const readIds = Array.from(
-              new Set([...(prev.readChapterIds ?? []), ...(l.readChapterIds ?? [])]),
-            );
-            libMap.set(l.key, {
-              ...(l.lastReadAt && (!prev.lastReadAt || l.lastReadAt > prev.lastReadAt) ? l : prev),
-              categoryIds: Array.from(new Set([...prev.categoryIds, ...l.categoryIds])),
-              readChapterIds: readIds,
-            });
-          }
-        }
-
-        const histMap = new Map<string, HistoryEntry>();
-        for (const h of get().history) histMap.set(h.key, h);
-        for (const h of payload.history ?? []) {
-          const prev = histMap.get(h.key);
-          if (!prev || h.updatedAt > prev.updatedAt) histMap.set(h.key, h);
-        }
-
-        await window.noctis.applyBackupData({
-          categories: Array.from(catMap.values()),
-          library: Array.from(libMap.values()),
-          history: Array.from(histMap.values()).sort((a, b) => b.updatedAt - a.updatedAt),
-        });
+        await mergeAndPersistVault(
+          get().categories,
+          get().library,
+          get().history,
+          payload,
+        );
         await get().refreshAllData();
       }
-      await get().updateSettings({ syncServerUrl: serverUrl.trim(), syncUsername: creds.username });
+      await get().updateSettings({
+        syncServerUrl: serverUrl.trim(),
+        syncUsername: creds.username,
+        syncAuthHash: creds.authHash,
+        syncKeyJwk: JSON.stringify(creds.keyJwk),
+      });
       set({ syncSession: creds, syncLastAt: updatedAt || Date.now() });
       get().notify(`Synced encrypted vault for "${creds.username}"`, 'success');
     } finally {
@@ -1210,11 +1309,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   syncPushNow: async () => {
     const { syncSession, settings } = get();
-    if (!syncSession || !settings.syncServerUrl) return;
+    const resolvedUrl = resolveSyncServerUrl(settings.syncServerUrl);
+    if (!syncSession || !resolvedUrl) return;
     set({ syncBusy: true });
     try {
       const now = Date.now();
-      const ts = await remotePushVault(settings.syncServerUrl, syncSession, {
+      const ts = await remotePushVault(resolvedUrl, syncSession, {
         categories: get().categories,
         library: get().library,
         history: get().history,
@@ -1229,8 +1329,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   syncSignOut: async () => {
+    if (autoSyncTimer) {
+      clearTimeout(autoSyncTimer);
+      autoSyncTimer = null;
+    }
     set({ syncSession: null, syncLastAt: 0 });
-    await get().updateSettings({ syncUsername: '' });
+    await get().updateSettings({
+      syncUsername: '',
+      syncAuthHash: '',
+      syncKeyJwk: '',
+    });
     get().notify('Signed out of sync account', 'info');
   },
 }));

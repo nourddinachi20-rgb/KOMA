@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.0.4';
+export const APP_VERSION = '1.0.5';
 
 export interface ChangelogSection {
   title: string;
@@ -7,11 +7,11 @@ export interface ChangelogSection {
 }
 
 export const DEFAULT_WHATS_NEW_NOTES = `### New Features
-- **Zero-Knowledge Account Sync:** Sign up or sign in using only a Username + Password (no Google, no email). Everything is AES-256-GCM encrypted on your device before syncing across devices.
-- **Open-Source Sync Worker:** Included lightweight Cloudflare Worker backend in sync-worker/ for free hosting or self-hosting.
+- **Instant Cross-Device Account Sync:** Create an account or sign in from any phone, tablet, or Windows PC using only a Username and Password — zero server setup required and zero-knowledge encrypted on your device.
+- **Persistent Login & Auto-Sync:** Stay signed in across app launches. KOMA now pulls your latest library and reading progress automatically on startup and syncs changes silently in the background.
 
 ### Improvements
-- **Much Faster Bulk Migration:** Broken-source migration now searches 4 titles concurrently with smart early-exit instead of blasting all 8 sources sequentially.`;
+- **Zero-Clutter Sync UI:** Removed the required server URL field from Settings while keeping an optional custom server toggle for self-hosters.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

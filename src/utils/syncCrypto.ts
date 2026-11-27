@@ -2,6 +2,7 @@ export interface SyncCredentials {
   username: string;
   authHash: string;
   encryptionKey: CryptoKey;
+  keyJwk: JsonWebKey;
 }
 
 export interface EncryptedVaultBlob {
@@ -39,7 +40,7 @@ function toArrayBuffer(u8: Uint8Array): ArrayBuffer {
 
 /**
  * Derives TWO independent keys locally using PBKDF2-SHA-256:
- *  - AES-256-GCM encryption key (non-extractable, never leaves the device)
+ *  - AES-256-GCM encryption key (stored locally only as JWK; never sent to server)
  *  - Server authentication verifier hash (server never sees password or encryption key)
  */
 export async function deriveSyncCredentials(
@@ -87,11 +88,27 @@ export async function deriveSyncCredentials(
     'raw',
     toArrayBuffer(encKeyBytes),
     { name: 'AES-GCM' },
-    false,
+    true,
     ['encrypt', 'decrypt'],
   );
+  const keyJwk = await crypto.subtle.exportKey('jwk', encryptionKey);
 
-  return { username, authHash, encryptionKey };
+  return { username, authHash, encryptionKey, keyJwk };
+}
+
+export async function restoreSyncCredentials(
+  username: string,
+  authHash: string,
+  keyJwk: JsonWebKey,
+): Promise<SyncCredentials> {
+  const encryptionKey = await crypto.subtle.importKey(
+    'jwk',
+    keyJwk,
+    { name: 'AES-GCM' },
+    true,
+    ['encrypt', 'decrypt'],
+  );
+  return { username, authHash, encryptionKey, keyJwk };
 }
 
 export async function encryptVaultData(

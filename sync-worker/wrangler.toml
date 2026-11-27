@@ -4,4 +4,4 @@ compatibility_date = "2026-01-01"
 
 [[kv_namespaces]]
 binding = "KOMA_VAULT"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "a85c7ff9ac404ea4872a682f05cd11de"

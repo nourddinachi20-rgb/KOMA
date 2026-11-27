@@ -1117,7 +1117,9 @@ class KomaNativePlugin : Plugin() {
               "lastSeenVersion":"",
               "pendingWhatsNewNotes":"",
               "syncServerUrl":"",
-              "syncUsername":""
+              "syncUsername":"",
+              "syncAuthHash":"",
+              "syncKeyJwk":""
             }
         """.trimIndent()
     }

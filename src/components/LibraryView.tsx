@@ -451,6 +451,7 @@ export function LibraryView() {
                   key={entry.key}
                   manga={entry.manga}
                   broken={brokenKeySet.has(entry.key)}
+                  showSource={false}
                   subtitle={hist ? `Ch. ${hist.chapterNumber || '?'}` : undefined}
                   progressPercent={pct}
                   onQuickPlay={() => void handleQuickPlay(entry)}
