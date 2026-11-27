@@ -269,7 +269,7 @@ class KomaNativePlugin : Plugin() {
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "application/json"
-            putExtra(Intent.EXTRA_TITLE, "koma-sanctuary-backup.json")
+            putExtra(Intent.EXTRA_TITLE, "koma-backup.json")
         }
         startActivityForResult(call, intent, "onBackupSaved")
     }
@@ -310,7 +310,7 @@ class KomaNativePlugin : Plugin() {
                 val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
                 if (bytes.isEmpty()) "" else Base64.encodeToString(bytes, Base64.NO_WRAP)
             }.getOrDefault("")
-            val name = queryDisplayName(uri) ?: uri.lastPathSegment ?: "backup"
+            val name = getDisplayName(uri) ?: uri.lastPathSegment ?: "backup"
             call.resolve(JSObject().put("base64", b64).put("fileName", name))
         } else {
             call.resolve(JSObject().put("base64", "").put("fileName", ""))
