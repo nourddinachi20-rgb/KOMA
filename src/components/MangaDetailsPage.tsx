@@ -19,9 +19,10 @@ import {
   Star,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import type { AniListMediaInfo, Manga } from '../types';
+import type { AniListMediaInfo, Manga, MangaChapter } from '../types';
 import { getProxiedImageUrl } from '../utils/api';
 import { extractAmbientColor } from '../utils/colorExtractor';
+import { DownloadModal } from './DownloadModal';
 import { MigrateModal } from './MigrateModal';
 
 export function MangaDetailsPage() {
@@ -50,12 +51,13 @@ export function MangaDetailsPage() {
   const [anilist, setAnilist] = useState<AniListMediaInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ambientRgb, setAmbientRgb] = useState('234, 194, 120');
+  const [ambientRgb, setAmbientRgb] = useState('255, 255, 255');
   const [sortDesc, setSortDesc] = useState(true);
   const [chapterFilter, setChapterFilter] = useState('');
   const [chapterPage, setChapterPage] = useState(1);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [batchDownloading, setBatchDownloading] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
   const [expandDesc, setExpandDesc] = useState(false);
   const [migrateOpen, setMigrateOpen] = useState(false);
 
@@ -238,17 +240,14 @@ export function MangaDetailsPage() {
     });
   };
 
-  const handleBatchDownload = async () => {
-    if (ascendingChapters.length === 0 || batchDownloading) return;
+  const handleQueueChapters = async (list: MangaChapter[]) => {
+    if (list.length === 0 || batchDownloading) return;
     setBatchDownloading(true);
     try {
-      const startFrom = nextUnreadIdx >= 0 ? nextUnreadIdx : 0;
-      const candidates = ascendingChapters
-        .slice(startFrom)
-        .filter((ch) => !downloads.some((d) => d.key === `${manga.source}::${manga.id}::${ch.id}`))
-        .slice(0, 5);
-      for (const ch of candidates) {
-        await queueDownload(manga, ch);
+      for (const ch of list) {
+        if (!downloads.some((d) => d.key === `${manga.source}::${manga.id}::${ch.id}`)) {
+          await queueDownload(manga, ch);
+        }
       }
     } finally {
       setBatchDownloading(false);
@@ -422,69 +421,71 @@ export function MangaDetailsPage() {
               </div>
             )}
 
-            {/* Primary Actions */}
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <button
-                onClick={handlePrimaryRead}
-                disabled={ascendingChapters.length === 0}
-                className="flex items-center gap-2 rounded-full bg-white px-7 py-3 text-sm font-semibold text-black shadow-[0_0_32px_rgba(255,255,255,0.28)] transition hover:scale-[1.02] hover:bg-zinc-100 disabled:opacity-40 cursor-pointer"
-              >
-                <Play className="h-4 w-4 fill-black" />
-                <span>
-                  {historyItem && !readSet.has(historyItem.chapterId)
-                    ? `Resume Ch. ${historyItem.chapterNumber || ''} (p.${historyItem.pageIndex + 1})`
-                    : nextUnreadIdx > 0
-                      ? `Continue Ch. ${ascendingChapters[nextUnreadIdx]?.number || nextUnreadIdx + 1}`
-                      : 'Start Reading'}
-                </span>
-              </button>
+            {/* Primary Actions: Row 1 (Read/Resume + Add to Library), Row 2 (Download + Migrate underneath) */}
+            <div className="mt-6 space-y-2.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  onClick={handlePrimaryRead}
+                  disabled={ascendingChapters.length === 0}
+                  className="accent-bg flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold shadow-[0_0_24px_rgba(var(--koma-accent-rgb),0.22)] transition hover:scale-[1.02] disabled:opacity-40 cursor-pointer"
+                >
+                  <Play className="h-4 w-4 fill-current" />
+                  <span>
+                    {historyItem && !readSet.has(historyItem.chapterId)
+                      ? `Resume Ch. ${historyItem.chapterNumber || ''} (p.${historyItem.pageIndex + 1})`
+                      : nextUnreadIdx > 0
+                        ? `Continue Ch. ${ascendingChapters[nextUnreadIdx]?.number || nextUnreadIdx + 1}`
+                        : 'Start Reading'}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => void toggleLibraryManga(manga)}
-                className={`flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-medium transition cursor-pointer ${
-                  inLibrary
-                    ? 'border-white/30 bg-white/15 text-white'
-                    : 'border-white/15 bg-white/[0.05] text-zinc-200 hover:border-white/30 hover:bg-white/10'
-                }`}
-              >
-                {inLibrary ? (
-                  <>
-                    <Check className="h-4 w-4" />
-                    <span>In Library</span>
-                  </>
-                ) : (
-                  <>
-                    <Bookmark className="h-4 w-4" />
-                    <span>Add to Library</span>
-                  </>
-                )}
-              </button>
+                <button
+                  onClick={() => void toggleLibraryManga(manga)}
+                  className={`flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-medium transition cursor-pointer ${
+                    inLibrary
+                      ? 'border-white/30 bg-white/15 text-white'
+                      : 'border-white/15 bg-white/[0.05] text-zinc-200 hover:border-white/30 hover:bg-white/10'
+                  }`}
+                >
+                  {inLibrary ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      <span>In Library</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bookmark className="h-4 w-4" />
+                      <span>Add to Library</span>
+                    </>
+                  )}
+                </button>
+              </div>
 
               {manga.source !== 'LOCAL' && (
-                <>
-                  <button
-                    onClick={() => setMigrateOpen(true)}
-                    className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-medium text-zinc-200 transition hover:border-white/25 hover:bg-white/10 hover:text-white cursor-pointer"
-                  >
-                    <ArrowRightLeft className="h-3.5 w-3.5" />
-                    <span>Migrate Source</span>
-                  </button>
-
+                <div className="flex flex-wrap items-center gap-2">
                   {ascendingChapters.length > 0 && (
                     <button
-                      onClick={handleBatchDownload}
+                      onClick={() => setDownloadOpen(true)}
                       disabled={batchDownloading}
-                      className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:bg-white/10 hover:text-white cursor-pointer"
+                      className="flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-medium text-zinc-200 transition hover:border-white/25 hover:bg-white/10 hover:text-white cursor-pointer"
                     >
                       {batchDownloading ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <Download className="h-3.5 w-3.5" />
                       )}
-                      <span>Download Next 5</span>
+                      <span>{batchDownloading ? 'Downloading...' : 'Download'}</span>
                     </button>
                   )}
-                </>
+
+                  <button
+                    onClick={() => setMigrateOpen(true)}
+                    className="flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-medium text-zinc-200 transition hover:border-white/25 hover:bg-white/10 hover:text-white cursor-pointer"
+                  >
+                    <ArrowRightLeft className="h-3.5 w-3.5" />
+                    <span>Migrate Source</span>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -810,6 +811,16 @@ export function MangaDetailsPage() {
           </div>
         )}
       </div>
+
+      <DownloadModal
+        open={downloadOpen}
+        manga={manga}
+        chapters={ascendingChapters}
+        readChapterIds={readSet}
+        downloads={downloads}
+        onClose={() => setDownloadOpen(false)}
+        onQueueChapters={handleQueueChapters}
+      />
 
       <MigrateModal open={migrateOpen} manga={manga} onClose={() => setMigrateOpen(false)} />
     </motion.div>

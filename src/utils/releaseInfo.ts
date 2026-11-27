@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.0.1';
+export const APP_VERSION = '1.0.2';
 
 export interface ChangelogSection {
   title: string;
@@ -7,12 +7,16 @@ export interface ChangelogSection {
 }
 
 export const DEFAULT_WHATS_NEW_NOTES = `### New Features
-- **Theme & Color Customization:** Switch between Pure Black (#000000), Dark Slate, and Light Paper in Settings, plus custom accent colors.
-- **Interface Languages:** Added English, French, and Arabic UI support (with RTL layout for Arabic).
+- **Flexible Download Picker:** Download unread chapters, all chapters, custom chapter ranges, or individual chapters.
+- **Swipe Page Turns:** Swipe left/right to turn pages in Manga / Spread reader modes on phone and tablet.
+- **Backup Compatibility:** Restore backups from Kotatsu (.bk/.zip), Mihon & Komikku (.tachibk/.proto.gz), and KOMA (.json).
 
 ### Improvements
-- **Pure Black & White UI:** Replaced gold/amber highlights with monochrome black-and-white across Home, Library, Reader, Settings, and Splash.
-- **Cleaner Home Spotlight:** Removed the bottom spotlight carousel thumbnail bar for a cleaner layout.`;
+- **Mobile & UI Cleanup:** Compact Library view showing your manga immediately, 3rd card peek in carousels, unified font, organized Settings sections, and aligned series action buttons.
+- **Auto Format Detection:** Automatically detects Long-Strip Webtoons vs Manga from tags and loaded page aspect ratios.
+
+### Fixes
+- **Mobile Notifications:** Long notification toasts now wrap cleanly inside screen bounds.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

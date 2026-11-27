@@ -260,11 +260,8 @@ export function DownloadsView() {
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <HardDrive className="mb-3 h-8 w-8 text-zinc-600" />
-            <p className="font-editorial text-3xl text-zinc-300">Zero Offline Chapters Yet</p>
-            <p className="mt-2 max-w-sm text-xs text-zinc-500">
-              Open any series and click Download on a chapter (or Download Next 5) to store crisp
-              CBZ volumes locally for instant offline reading.
-            </p>
+            <p className="text-xl font-bold text-zinc-200">{t.downloads.emptyTitle}</p>
+            <p className="mt-2 max-w-sm text-xs text-zinc-500">{t.downloads.emptySub}</p>
           </div>
         )}
       </div>

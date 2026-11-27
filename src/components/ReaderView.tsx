@@ -137,13 +137,21 @@ export function ReaderView() {
     const mKey = `${readerSession.manga.source}::${readerSession.manga.id}`;
     const savedPref = settings.mangaReaderPrefs?.[mKey];
     const tagsLower = readerSession.manga.tags.map((t) => t.title.toLowerCase());
-    const looksWebtoon = tagsLower.some((t) =>
-      ['long strip', 'web comic', 'webtoon', 'full color', 'manhwa', 'manhua'].some((k) =>
-        t.includes(k),
-      ),
-    );
+    const srcUpper = readerSession.manga.source.toUpperCase();
+    const titleSample = `${readerSession.manga.title} ${readerSession.manga.altTitles.join(' ')}`;
+    const hasKoreanOrManhwaScript = /[\uAC00-\uD7AF]/.test(titleSample);
+    const looksWebtoon =
+      tagsLower.some((t) =>
+        ['long strip', 'web comic', 'webtoon', 'full color', 'manhwa', 'manhua', 'vertical'].some(
+          (k) => t.includes(k),
+        ),
+      ) ||
+      ['ASURA', 'REAPER', 'FLAME', 'LEVIATAN', 'WEBTOON', 'MANHWA'].some((k) =>
+        srcUpper.includes(k),
+      ) ||
+      hasKoreanOrManhwaScript;
     const detectedMode: ReaderMode =
-      savedPref?.mode ?? (looksWebtoon ? 'webtoon' : settings.defaultReaderMode);
+      savedPref?.mode ?? (looksWebtoon ? 'webtoon' : 'rtl');
     const detectedFit: FitMode = savedPref?.fit ?? settings.defaultFitMode;
 
     setMode(detectedMode);
@@ -201,6 +209,35 @@ export function ReaderView() {
             ? Math.min(readerSession.initialPage ?? 0, Math.max(0, urls.length - 1))
             : 0;
         setCurrentPage(startPage);
+
+        // Live aspect-ratio auto-detection when user hasn't pinned a mode for this series
+        const mKey = `${manga.source}::${manga.id}`;
+        const hasManualPref = Boolean(settings.mangaReaderPrefs?.[mKey]?.mode);
+        if (!hasManualPref && urls.length > 0) {
+          Promise.all(
+            urls.slice(0, 3).map(
+              (u) =>
+                new Promise<{ w: number; h: number } | null>((res) => {
+                  const im = new Image();
+                  im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight });
+                  im.onerror = () => res(null);
+                  im.src = u;
+                }),
+            ),
+          ).then((dims) => {
+            if (cancelled) return;
+            const valid = dims.filter((d): d is { w: number; h: number } => Boolean(d && d.w > 0 && d.h > 0));
+            if (valid.length === 0) return;
+            const avgRatio = valid.reduce((acc, d) => acc + d.h / d.w, 0) / valid.length;
+            const wideVerticalCount = valid.filter((d) => d.h / d.w >= 1.85).length;
+            if (wideVerticalCount >= 1 || avgRatio >= 1.85) {
+              setMode('webtoon');
+            } else if (avgRatio <= 1.6) {
+              setMode('rtl');
+            }
+          });
+        }
+
         if (mode === 'webtoon' && startPage > 0) {
           requestAnimationFrame(() => {
             pageRefs.current[startPage]?.scrollIntoView({ behavior: 'auto' });
@@ -483,21 +520,36 @@ export function ReaderView() {
     panStartRef.current = null;
   };
 
-  // Touch pinch-to-zoom & 1-finger pan for Android phones/tablets
+  // Touch pinch-to-zoom, 1-finger pan, AND horizontal page swipe for phones/tablets
   const pinchStartDistRef = useRef<number | null>(null);
   const pinchStartZoomRef = useRef<number>(1);
+  const touchSwipeRef = useRef<{ x: number; y: number; dx: number; dy: number; active: boolean } | null>(null);
+  const lastSwipeAtRef = useRef(0);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
+      touchSwipeRef.current = null;
+      setSwipeOffset(0);
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       pinchStartDistRef.current = Math.hypot(dx, dy);
       pinchStartZoomRef.current = zoom;
     } else if (e.touches.length === 1 && zoom > 1) {
+      touchSwipeRef.current = null;
       panStartRef.current = {
         x: e.touches[0].clientX,
         y: e.touches[0].clientY,
         px: pan.x,
         py: pan.y,
+      };
+    } else if (e.touches.length === 1 && zoom <= 1.02 && mode !== 'webtoon') {
+      touchSwipeRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        dx: 0,
+        dy: 0,
+        active: true,
       };
     }
   };
@@ -515,9 +567,34 @@ export function ReaderView() {
         x: panStartRef.current.px + (e.touches[0].clientX - panStartRef.current.x),
         y: panStartRef.current.py + (e.touches[0].clientY - panStartRef.current.y),
       });
+    } else if (e.touches.length === 1 && touchSwipeRef.current?.active && mode !== 'webtoon') {
+      const dx = e.touches[0].clientX - touchSwipeRef.current.x;
+      const dy = e.touches[0].clientY - touchSwipeRef.current.y;
+      touchSwipeRef.current.dx = dx;
+      touchSwipeRef.current.dy = dy;
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+        setSwipeOffset(Math.max(-96, Math.min(96, dx * 0.45)));
+      }
     }
   };
   const handleTouchEnd = () => {
+    const sw = touchSwipeRef.current;
+    if (sw?.active && mode !== 'webtoon') {
+      const absX = Math.abs(sw.dx);
+      const absY = Math.abs(sw.dy);
+      if (absX > 38 && absX > absY * 1.1) {
+        lastSwipeAtRef.current = Date.now();
+        if (mode === 'rtl') {
+          if (sw.dx > 0) goNextPage();
+          else goPrevPage();
+        } else {
+          if (sw.dx < 0) goNextPage();
+          else goPrevPage();
+        }
+      }
+    }
+    setSwipeOffset(0);
+    touchSwipeRef.current = null;
     pinchStartDistRef.current = null;
     panStartRef.current = null;
   };
@@ -737,22 +814,32 @@ export function ReaderView() {
           <div
             onDoubleClick={handleDoubleClickZoom}
             style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transform: `translate(${pan.x + swipeOffset}px, ${pan.y}px) scale(${zoom})`,
+              touchAction: 'pan-y',
             }}
             className="relative flex h-full w-full items-center justify-center transition-transform duration-150 ease-out"
           >
             {zoom === 1 && (
               <>
                 <div
-                  onClick={() => (mode === 'rtl' ? goNextPage() : goPrevPage())}
+                  onClick={() => {
+                    if (Date.now() - lastSwipeAtRef.current < 260) return;
+                    mode === 'rtl' ? goNextPage() : goPrevPage();
+                  }}
                   className="absolute inset-y-0 left-0 z-10 w-1/3 cursor-w-resize"
                 />
                 <div
-                  onClick={() => setHudVisible((v) => !v)}
+                  onClick={() => {
+                    if (Date.now() - lastSwipeAtRef.current < 260) return;
+                    setHudVisible((v) => !v);
+                  }}
                   className="absolute inset-y-0 left-1/3 z-10 w-1/3 cursor-pointer"
                 />
                 <div
-                  onClick={() => (mode === 'rtl' ? goPrevPage() : goNextPage())}
+                  onClick={() => {
+                    if (Date.now() - lastSwipeAtRef.current < 260) return;
+                    mode === 'rtl' ? goPrevPage() : goNextPage();
+                  }}
                   className="absolute inset-y-0 right-0 z-10 w-1/3 cursor-e-resize"
                 />
               </>

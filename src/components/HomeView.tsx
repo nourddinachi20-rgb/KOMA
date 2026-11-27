@@ -154,7 +154,7 @@ export function HomeView() {
         />
       )}
 
-      <div className="relative z-10 mx-auto max-w-[1460px] space-y-10 px-6 pt-3">
+      <div className="relative z-10 mx-auto max-w-[1460px] space-y-8 px-4 pt-3 sm:space-y-10 sm:px-6">
         {currentHero ? (
           <div
             onMouseEnter={() => setHeroPaused(true)}
@@ -396,7 +396,7 @@ export function HomeView() {
           </div>
         ) : (
           <div className="flex min-h-[340px] flex-col items-center justify-center rounded-3xl border border-white/[0.08] bg-white/[0.02] p-10 text-center">
-            <h1 className="font-editorial text-4xl text-white">{t.home.loadingTitle}</h1>
+            <h1 className="text-3xl font-bold text-white">{t.home.loadingTitle}</h1>
             <p className="mt-2 max-w-md text-sm text-zinc-400">
               {engineStatus.ready ? t.home.loadingSources : t.home.connectingEngine}
             </p>
@@ -427,7 +427,7 @@ export function HomeView() {
                 {t.home.continueReading}
               </h2>
             </div>
-            <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
+            <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2 sm:gap-4">
               {history.slice(0, 16).map((h) => {
                 const pct =
                   h.totalPages > 0 ? Math.round(((h.pageIndex + 1) / h.totalPages) * 100) : 10;
@@ -460,7 +460,7 @@ export function HomeView() {
             </div>
 
             {row.loading && row.items.length === 0 ? (
-              <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
+              <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2 sm:gap-4">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div
                     key={i}
@@ -469,7 +469,7 @@ export function HomeView() {
                 ))}
               </div>
             ) : row.items.length > 0 ? (
-              <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
+              <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2 sm:gap-4">
                 {row.items.map((item) => (
                   <MangaCard key={`${row.source}-${item.id}`} manga={item} compact />
                 ))}

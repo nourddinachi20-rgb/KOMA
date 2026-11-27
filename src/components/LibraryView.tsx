@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react';
 import {
+  BarChart2,
   BookCheck,
   Flame,
   FolderInput,
   FolderPlus,
   Loader2,
+  MoreVertical,
   Plus,
   RefreshCw,
   Search,
+  SlidersHorizontal,
   Sparkles,
   Trash2,
 } from 'lucide-react';
@@ -59,6 +62,9 @@ export function LibraryView() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'lastRead' | 'unread' | 'title' | 'added'>('lastRead');
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [addingCat, setAddingCat] = useState(false);
 
@@ -141,22 +147,105 @@ export function LibraryView() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.07] px-6 py-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">{t.library.title}</h1>
-          <p className="font-mono-tech text-xs text-zinc-500">
-            {library.length} {t.library.seriesCount}
-          </p>
+      <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-3 sm:px-6">
+        <div className="flex items-baseline gap-2.5 min-w-0">
+          <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+            {t.library.title}
+          </h1>
+          <span className="text-xs text-zinc-500">
+            {library.length}
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
+        <div className="relative flex items-center gap-1.5">
+          <button
+            onClick={() => setShowFilters((s) => !s)}
+            title="Search & Sort"
+            className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs transition cursor-pointer ${
+              showFilters || search || unreadOnly
+                ? 'accent-bg border-white/35'
+                : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:border-white/25 hover:text-white'
+            }`}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Filter</span>
+          </button>
+
+          <button
+            onClick={() => setShowStats((s) => !s)}
+            title="Stats"
+            className={`flex h-9 w-9 items-center justify-center rounded-full border transition cursor-pointer ${
+              showStats
+                ? 'accent-bg border-white/35'
+                : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:border-white/25 hover:text-white'
+            }`}
+          >
+            <BarChart2 className="h-4 w-4" />
+          </button>
+
+          <button
+            onClick={() => setActionsOpen((o) => !o)}
+            title="More"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:border-white/25 hover:text-white cursor-pointer"
+          >
+            {checkingUpdates ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MoreVertical className="h-4 w-4" />
+            )}
+          </button>
+
+          {actionsOpen && (
+            <div
+              onMouseLeave={() => setActionsOpen(false)}
+              className="absolute right-0 top-11 z-40 w-48 overflow-hidden rounded-2xl border border-white/15 bg-[#0C0C10] p-1.5 shadow-2xl"
+            >
+              <button
+                onClick={() => {
+                  setActionsOpen(false);
+                  void checkLibraryUpdates();
+                }}
+                disabled={checkingUpdates || library.length === 0}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs text-zinc-200 hover:bg-white/10 disabled:opacity-40 cursor-pointer"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>{t.library.checkUpdates}</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActionsOpen(false);
+                  void importLocalArchives();
+                }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs text-zinc-200 hover:bg-white/10 cursor-pointer"
+              >
+                <FolderPlus className="h-3.5 w-3.5" />
+                <span>{t.library.importCbz}</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActionsOpen(false);
+                  void importLocalFolder();
+                }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs text-zinc-200 hover:bg-white/10 cursor-pointer"
+              >
+                <FolderInput className="h-3.5 w-3.5" />
+                <span>{t.library.importFolder}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Collapsible Filter / Search Bar (hidden by default so Library grid is front & center) */}
+      {showFilters && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5 sm:px-6">
+          <div className="relative flex-1 min-w-[160px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Filter library..."
-              className="w-44 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-9 pr-4 text-xs text-white placeholder-zinc-500 focus:border-white/25 focus:outline-none"
+              className="w-full rounded-full border border-white/10 bg-white/[0.05] py-1.5 pl-9 pr-4 text-xs text-white placeholder-zinc-500 focus:border-white/25 focus:outline-none"
             />
           </div>
 
@@ -181,75 +270,44 @@ export function LibraryView() {
           >
             {t.library.unreadOnly}
           </button>
-
-          <button
-            onClick={() => void checkLibraryUpdates()}
-            disabled={checkingUpdates || library.length === 0}
-            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3.5 py-1.5 text-xs font-medium text-white transition hover:border-white/30 hover:bg-white/10 disabled:opacity-40 cursor-pointer"
-          >
-            {checkingUpdates ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5" />
-            )}
-            <span>{checkingUpdates ? t.library.checking : t.library.checkUpdates}</span>
-          </button>
-
-          <button
-            onClick={importLocalArchives}
-            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3.5 py-1.5 text-xs font-medium text-white transition hover:border-white/30 hover:bg-white/10 cursor-pointer"
-          >
-            <FolderPlus className="h-3.5 w-3.5" />
-            <span>{t.library.importCbz}</span>
-          </button>
-
-          <button
-            onClick={importLocalFolder}
-            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3.5 py-1.5 text-xs font-medium text-white transition hover:border-white/30 hover:bg-white/10 cursor-pointer"
-          >
-            <FolderInput className="h-3.5 w-3.5" />
-            <span>{t.library.importFolder}</span>
-          </button>
         </div>
-      </div>
+      )}
 
-      {/* Reading Stats Strip */}
-      <div className="grid grid-cols-2 gap-2.5 border-b border-white/[0.05] bg-white/[0.015] px-6 py-3 sm:grid-cols-4">
-        <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2">
-          <BookCheck className="h-4 w-4 accent-fg" />
-          <div>
-            <div className="font-mono-tech text-sm font-bold text-white">
-              {stats.chaptersCompleted}
+      {/* Collapsible Stats Strip */}
+      {showStats && (
+        <div className="grid grid-cols-2 gap-2 border-b border-white/[0.05] bg-white/[0.015] px-4 py-3 sm:grid-cols-4 sm:px-6">
+          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <BookCheck className="h-4 w-4 accent-fg" />
+            <div>
+              <div className="text-sm font-bold text-white">{stats.chaptersCompleted}</div>
+              <div className="text-[10px] text-zinc-500">{t.library.chaptersFinished}</div>
             </div>
-            <div className="text-[10px] text-zinc-500">{t.library.chaptersFinished}</div>
           </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2">
-          <Sparkles className="h-4 w-4 text-zinc-300" />
-          <div>
-            <div className="font-mono-tech text-sm font-bold text-white">{stats.pagesRead}</div>
-            <div className="text-[10px] text-zinc-500">{t.library.pagesRead}</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2">
-          <Flame className="h-4 w-4 accent-fg" />
-          <div>
-            <div className="font-mono-tech text-sm font-bold text-white">{streak}d</div>
-            <div className="text-[10px] text-zinc-500">{t.library.streak}</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2">
-          <div className="min-w-0">
-            <div className="truncate font-mono-tech text-sm font-bold text-white">
-              {topGenre ?? '—'}
+          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <Sparkles className="h-4 w-4 text-zinc-300" />
+            <div>
+              <div className="text-sm font-bold text-white">{stats.pagesRead}</div>
+              <div className="text-[10px] text-zinc-500">{t.library.pagesRead}</div>
             </div>
-            <div className="text-[10px] text-zinc-500">{t.library.topGenre}</div>
+          </div>
+          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <Flame className="h-4 w-4 accent-fg" />
+            <div>
+              <div className="text-sm font-bold text-white">{streak}d</div>
+              <div className="text-[10px] text-zinc-500">{t.library.streak}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-bold text-white">{topGenre ?? '—'}</div>
+              <div className="text-[10px] text-zinc-500">{t.library.topGenre}</div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Category Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-white/[0.05] px-6 py-3 no-scrollbar">
+      {/* Compact Category Pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto border-b border-white/[0.05] px-4 py-2 no-scrollbar sm:px-6">
         <button
           onClick={() => setActiveCat('all')}
           className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
@@ -320,9 +378,9 @@ export function LibraryView() {
       </div>
 
       {/* Grid */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {filtered.length > 0 ? (
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {filtered.map((entry) => {
               const hist = history.find((h) => h.key === entry.key);
               const pct =
@@ -342,9 +400,9 @@ export function LibraryView() {
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            <p className="font-editorial text-3xl text-zinc-300">Nothing on this shelf yet</p>
+            <p className="text-xl font-bold text-zinc-200">Nothing here yet</p>
             <p className="mt-2 max-w-sm text-xs text-zinc-500">
-              Bookmark any series, or drag-and-drop .cbz / .zip files or manga folders right onto KOMA.
+              Add manga to your library or import a .cbz / .zip file.
             </p>
             <button
               onClick={() => setActiveView('explore')}

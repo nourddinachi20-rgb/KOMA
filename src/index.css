@@ -3,8 +3,8 @@
 @layer base {
   :root {
     --font-sans: 'Segoe UI Variable', 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
-    --font-serif: Georgia, 'Times New Roman', serif;
-    --font-mono: 'Cascadia Mono', 'Consolas', 'JetBrains Mono', monospace;
+    --font-serif: 'Segoe UI Variable', 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'Segoe UI Variable', 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
     --koma-bg: #000000;
     --koma-surface: #08080c;
     --koma-text: #ffffff;

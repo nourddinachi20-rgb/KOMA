@@ -186,7 +186,7 @@ export function UpdatesView() {
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <Bell className="mb-3 h-8 w-8 text-zinc-600" />
-            <p className="font-editorial text-3xl text-zinc-300">All Caught Up</p>
+            <p className="text-xl font-bold text-zinc-200">All Caught Up</p>
             <p className="mt-2 max-w-sm text-xs text-zinc-500">
               Click Check Updates to scan every series in your Library for newly released chapters.
             </p>

@@ -122,7 +122,7 @@ export const MangaCard = memo(function MangaCard({
         onContextMenu={handleContextMenu}
         onClick={onClick ?? (() => openManga(manga))}
         className={`cv-card group relative flex flex-col cursor-pointer select-none transition-transform duration-200 ease-out hover:-translate-y-1 ${
-          compact ? 'w-[156px] shrink-0' : 'w-full'
+          compact ? 'w-[124px] sm:w-[156px] shrink-0' : 'w-full'
         }`}
       >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.08] bg-[#0a0a0d] transition-colors duration-200 group-hover:border-white/25">

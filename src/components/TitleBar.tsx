@@ -68,10 +68,10 @@ export function TitleBar() {
           />
           <span>
             {engineStatus.ready
-              ? `${sources.length || engineStatus.sourcesCount} ${t.nav.sourcesCount}`
+              ? `${sources.length || engineStatus.sourcesCount}`
               : engineStatus.error
-                ? t.nav.engineOffline
-                : t.nav.booting}
+                ? 'OFF'
+                : '...'}
           </span>
         </div>
       </div>
