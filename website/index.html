@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KOMA — Pure OLED Manga Sanctuary · Windows &amp; Android</title>
+    <meta
+      name="description"
+      content="Download KOMA by VirtualDrum — Plug-and-play #000000 OLED manga & manhwa sanctuary for Windows PC, Android Phones, and Android Tablets."
+    />
+    <link rel="icon" type="image/png" href="./icon.png" />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      :root {
+        --bg: #000000;
+        --surface: rgba(255, 255, 255, 0.03);
+        --border: rgba(255, 255, 255, 0.1);
+        --gold: #eac278;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: #f4f4f6;
+        font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+      .mono {
+        font-family: 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
+      }
+      .shell {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+      .ambient-top {
+        position: fixed;
+        top: -120px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 1100px;
+        height: 540px;
+        pointer-events: none;
+        background: radial-gradient(
+          ellipse at 50% 25%,
+          rgba(234, 194, 120, 0.18) 0%,
+          rgba(234, 194, 120, 0.05) 42%,
+          transparent 72%
+        );
+        z-index: 0;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: rgba(0, 0, 0, 0.85);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      }
+      .nav-bar {
+        height: 68px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: #fff;
+      }
+      .brand-name {
+        font-weight: 800;
+        font-size: 15px;
+        letter-spacing: 0.28em;
+      }
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+      .nav-links a {
+        color: #a1a1aa;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 500;
+        transition: color 0.15s;
+      }
+      .nav-links a:hover {
+        color: #fff;
+      }
+      .btn-white {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: #ffffff;
+        color: #000000;
+        border: none;
+        border-radius: 9999px;
+        padding: 11px 22px;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow: 0 0 28px rgba(255, 255, 255, 0.22);
+        transition: transform 0.16s ease, background 0.16s ease;
+      }
+      .btn-white:hover {
+        transform: translateY(-1px);
+        background: #e4e4e7;
+      }
+      .btn-gold {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: var(--gold);
+        color: #000000;
+        border: none;
+        border-radius: 9999px;
+        padding: 12px 24px;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow: 0 0 28px rgba(234, 194, 120, 0.26);
+        transition: transform 0.16s ease, filter 0.16s ease;
+      }
+      .btn-gold:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.06);
+      }
+      .badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 9999px;
+        border: 1px solid rgba(234, 194, 120, 0.35);
+        background: rgba(234, 194, 120, 0.08);
+        padding: 5px 14px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--gold);
+      }
+      .hero {
+        position: relative;
+        z-index: 1;
+        padding: 64px 0 40px;
+        text-align: center;
+      }
+      h1 {
+        margin: 22px auto 0;
+        max-width: 820px;
+        font-size: clamp(2.3rem, 5vw, 4rem);
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        line-height: 1.06;
+        color: #fff;
+      }
+      .hero-sub {
+        margin: 18px auto 0;
+        max-width: 620px;
+        font-size: 16px;
+        line-height: 1.65;
+        color: #a1a1aa;
+      }
+      .download-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+        margin: 40px auto 0;
+        max-width: 920px;
+        text-align: left;
+      }
+      .card-surface {
+        border-radius: 24px;
+        border: 1px solid var(--border);
+        background: #07070a;
+        padding: 26px;
+        transition: border-color 0.2s, transform 0.2s;
+      }
+      .card-surface:hover {
+        border-color: rgba(255, 255, 255, 0.24);
+      }
+      .card-recommended {
+        border-color: rgba(234, 194, 120, 0.55) !important;
+        background: radial-gradient(circle at top right, rgba(234, 194, 120, 0.1), #07070a 60%);
+      }
+      .android-flex {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      }
+      .qr-box {
+        width: 128px;
+        height: 128px;
+        flex-shrink: 0;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: #0a0a0e;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+      }
+      .qr-caption {
+        margin-top: 4px;
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #71717a;
+      }
+      .section {
+        position: relative;
+        z-index: 1;
+        padding: 56px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .section-title {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0 0 8px;
+      }
+      .section-sub {
+        color: #a1a1aa;
+        font-size: 14px;
+        margin: 0 0 28px;
+      }
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .steps-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+      }
+      .notes-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .dot-gold {
+        width: 5px;
+        height: 5px;
+        margin-top: 8px;
+        border-radius: 9999px;
+        background: var(--gold);
+        flex-shrink: 0;
+      }
+      .space-y-2\.5 > * + * {
+        margin-top: 10px;
+      }
+      .flex {
+        display: flex;
+      }
+      .items-start {
+        align-items: flex-start;
+      }
+      .gap-2\.5 {
+        gap: 10px;
+      }
+      .mb-4 {
+        margin-bottom: 16px;
+      }
+      .p-6 {
+        padding: 24px;
+      }
+      .text-sm {
+        font-size: 13.5px;
+      }
+      .text-zinc-300 {
+        color: #d4d4d8;
+      }
+      .leading-relaxed {
+        line-height: 1.6;
+      }
+      footer {
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+        padding: 36px 0 48px;
+        text-align: center;
+        color: #71717a;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      @media (max-width: 900px) {
+        .download-grid,
+        .feature-grid,
+        .steps-grid,
+        .notes-grid {
+          grid-template-columns: 1fr;
+        }
+        .nav-links {
+          display: none;
+        }
+      }
+      @media (max-width: 540px) {
+        .android-flex {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .qr-box {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ambient-top"></div>
+
+    <header>
+      <div class="shell nav-bar">
+        <a href="#" class="brand">
+          <svg viewBox="0 0 64 64" width="32" height="32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3" width="58" height="58" rx="14" fill="#09090D" stroke="rgba(255,255,255,0.22)" stroke-width="1.5" />
+            <rect x="16" y="14" width="9" height="36" rx="2.5" fill="#F8F8FA" />
+            <path d="M28 31.5L42.5 14H50L33.5 33.5L28 31.5Z" fill="#F8F8FA" />
+            <path d="M29.5 32.5L35.5 30.5L50.5 50H41.5L29.5 32.5Z" fill="#D4D4DF" />
+            <path d="M28 32L31 29L34 32L31 35L28 32Z" fill="#EAC278" />
+          </svg>
+          <span class="brand-name">KOMA</span>
+          <span class="mono" data-version-pill style="font-size:11px;color:#EAC278;border:1px solid rgba(234,194,120,0.3);padding:2px 8px;border-radius:9999px;">v1.0.0</span>
+        </a>
+
+        <nav class="nav-links">
+          <a href="#downloads">Download</a>
+          <a href="#features">Features</a>
+          <a href="#whats-new">What's New</a>
+          <a href="#install">How to Install</a>
+        </nav>
+
+        <a href="#downloads" class="btn-white">Get KOMA Free</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero shell" id="downloads">
+        <div class="badge-pill">
+          <span>Crafted by VirtualDrum</span>
+          <span>·</span>
+          <span id="detected-os-pill">Windows PC &amp; Android Phone / Tablet</span>
+        </div>
+
+        <h1>Your Futuristic OLED<br />Manga Sanctuary.</h1>
+        <p class="hero-sub">
+          Zero accounts. Zero coding setup. Double-click on Windows or install in one tap on any Android phone or tablet—shipped ready with verified sources, offline CBZ downloads, AniList sync, and in-app auto-updates.
+        </p>
+
+        <div class="download-grid">
+          <!-- Windows Portable Card -->
+          <div id="card-windows" class="card-surface">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <span class="mono" style="font-size:11px;color:#a1a1aa;letter-spacing:0.15em;text-transform:uppercase;">Windows 10 / 11 · x64</span>
+              <span class="mono" data-version-pill style="font-size:11px;color:#EAC278;">v1.0.0</span>
+            </div>
+            <h2 style="margin:12px 0 6px;font-size:24px;font-weight:800;color:#fff;">KOMA for Windows</h2>
+            <p style="margin:0 0 18px;font-size:13.5px;color:#a1a1aa;line-height:1.55;">
+              Single standalone <code class="mono" style="color:#fff;">.exe</code> file with bundled Java source engine included. Run from Desktop, any folder, or a USB stick.
+            </p>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;">
+              <a
+                id="btn-download-win"
+                href="https://github.com/nourddinachi20-rgb/KOMA/releases/download/v1.0.0/KOMA-Portable.exe"
+                class="btn-white"
+              >
+                Download KOMA.exe
+              </a>
+              <span id="meta-win" class="mono" style="font-size:11px;color:#71717a;">KOMA-Portable.exe · 126.6 MB</span>
+            </div>
+            <p style="margin:14px 0 0;font-size:11px;color:#71717a;">
+              Tip: If Windows Defender SmartScreen prompts on first launch, click <strong>More info → Run anyway</strong>.
+            </p>
+          </div>
+
+          <!-- Android Adaptive Phone & Tablet Card -->
+          <div id="card-android" class="card-surface">
+            <div class="android-flex">
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                  <span class="mono" style="font-size:11px;color:#a1a1aa;letter-spacing:0.15em;text-transform:uppercase;">Android 8+ · Phone &amp; Tablet</span>
+                  <span class="mono" data-version-pill style="font-size:11px;color:#EAC278;">v1.0.0</span>
+                </div>
+                <h2 style="margin:12px 0 6px;font-size:24px;font-weight:800;color:#fff;">KOMA for Android</h2>
+                <p style="margin:0 0 18px;font-size:13.5px;color:#a1a1aa;line-height:1.55;">
+                  Adaptive UI for phones &amp; tablets with touch pinch-zoom, embedded parser engine, and WebView Cloudflare bypass.
+                </p>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;">
+                  <a
+                    id="btn-download-apk"
+                    href="https://github.com/nourddinachi20-rgb/KOMA/releases/download/v1.0.0/KOMA-Android.apk"
+                    class="btn-gold"
+                  >
+                    Download APK
+                  </a>
+                  <span id="meta-apk" class="mono" style="font-size:11px;color:#71717a;">KOMA-Android.apk · 11.0 MB</span>
+                </div>
+              </div>
+
+              <div class="qr-box">
+                <div id="apk-qr"></div>
+                <span class="qr-caption mono">Scan on Phone</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features -->
+      <section class="section shell" id="features">
+        <h2 class="section-title">Everything Built In. Plug &amp; Play.</h2>
+        <p class="section-sub">Engineered for speed, pure #000000 OLED screens, and zero technical setup.</p>
+
+        <div class="feature-grid">
+          <div class="card-surface">
+            <div class="mono" style="font-size:11px;color:#EAC278;margin-bottom:8px;">01 · ALL WORKING SOURCES</div>
+            <h3 style="margin:0 0 8px;font-size:17px;color:#fff;">EN / FR / AR Curated Extensions</h3>
+            <p style="margin:0;font-size:13px;color:#a1a1aa;line-height:1.6;">
+              Ships ready with MangaBall, MangaDex, AsuraScans, WeebCentral, MangaRead, LELManga, TeamXNovel, and an automatic Cloudflare solver.
+            </p>
+          </div>
+          <div class="card-surface">
+            <div class="mono" style="font-size:11px;color:#EAC278;margin-bottom:8px;">02 · PRO OLED READER</div>
+            <h3 style="margin:0 0 8px;font-size:17px;color:#fff;">Webtoon, RTL, Spread &amp; OLED Ink</h3>
+            <p style="margin:0;font-size:13px;color:#a1a1aa;line-height:1.6;">
+              Auto-detects Manhwa vs Manga per series, pinch/wheel zoom, Auto-Scroll Cruise, Binge Next chapter, and true-black contrast enhancement.
+            </p>
+          </div>
+          <div class="card-surface">
+            <div class="mono" style="font-size:11px;color:#EAC278;margin-bottom:8px;">03 · OFFLINE SANCTUARY</div>
+            <h3 style="margin:0 0 8px;font-size:17px;color:#fff;">Series CBZ Downloads &amp; Backups</h3>
+            <p style="margin:0;font-size:13px;color:#a1a1aa;line-height:1.6;">
+              Save chapters offline in crisp CBZ bundles, import your own archives, track streaks, and move your library between PC &amp; Android via JSON backup.
+            </p>
+          </div>
+          <div class="card-surface">
+            <div class="mono" style="font-size:11px;color:#EAC278;margin-bottom:8px;">04 · ANILIST INTELLIGENCE</div>
+            <h3 style="margin:0 0 8px;font-size:17px;color:#fff;">Related Entries &amp; Recommendations</h3>
+            <p style="margin:0;font-size:13px;color:#a1a1aa;line-height:1.6;">
+              Every series page pulls clean metadata, long-cover Related &amp; Recommended cards with 1-click multi-source lookup, and optional chapter progress sync.
+            </p>
+          </div>
+          <div class="card-surface">
+            <div class="mono" style="font-size:11px;color:#EAC278;margin-bottom:8px;">05 · PHONE, TABLET &amp; DESKTOP</div>
+            <h3 style="margin:0 0 8px;font-size:17px;color:#fff;">Dynamic Adaptive Layouts</h3>
+            <p style="margin:0;font-size:13px;color:#a1a1aa;line-height:1.6;">
+              Bottom thumb dock and slide-over drawers on phones, multi-column rails on tablets, and keyboard-first Ctrl+K search + side-button Back on PC.
+            </p>
+          </div>
+          <div class="card-surface">
+            <div class="mono" style="font-size:11px;color:#EAC278;margin-bottom:8px;">06 · SELF-UPDATING</div>
+            <h3 style="margin:0 0 8px;font-size:17px;color:#fff;">One-Click In-App Updates</h3>
+            <p style="margin:0;font-size:13px;color:#a1a1aa;line-height:1.6;">
+              Check versions and update both EXE &amp; APK straight inside Settings—KOMA installs, restarts cleanly, and presents What&apos;s New.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Live What's New Section -->
+      <section class="section shell" id="whats-new">
+        <h2 class="section-title" id="whats-new-title">What&apos;s New in ver : 1.0.0</h2>
+        <p class="section-sub">Automatically synced with the latest published KOMA release.</p>
+
+        <div id="release-notes-grid" class="notes-grid">
+          <div class="card-surface p-6">
+            <div class="badge-pill mb-4">New Features</div>
+            <ul class="space-y-2.5 text-sm text-zinc-300 leading-relaxed">
+              <li class="flex items-start gap-2.5"><span class="dot-gold"></span><span>Android Phone &amp; Tablet APK with embedded Kotlin parser engine and WebView Cloudflare bypass.</span></li>
+              <li class="flex items-start gap-2.5"><span class="dot-gold"></span><span>In-app GitHub auto-updater for Windows EXE &amp; Android APK with automatic restart &amp; What&apos;s New modal.</span></li>
+              <li class="flex items-start gap-2.5"><span class="dot-gold"></span><span>Interactive 6-step onboarding tutorial on first launch + in-reader Chapter Drawer.</span></li>
+            </ul>
+          </div>
+          <div class="card-surface p-6">
+            <div class="badge-pill mb-4">Improvements &amp; Performance</div>
+            <ul class="space-y-2.5 text-sm text-zinc-300 leading-relaxed">
+              <li class="flex items-start gap-2.5"><span class="dot-gold"></span><span>Tilted SSD-cached manga cover intro featuring Made by VirtualDrum.</span></li>
+              <li class="flex items-start gap-2.5"><span class="dot-gold"></span><span>Zero-blur OLED compositing, native Windows fonts, and 0ms persistent core tabs.</span></li>
+              <li class="flex items-start gap-2.5"><span class="dot-gold"></span><span>Trending Hero Spotlight &amp; shelves locked to top popularity rankings.</span></li>
+            </ul>
+          </div>
+          <div class="card-surface p-6">
+            <div class="badge-pill mb-4">Bug Fixes</div>
+            <ul class="space-y-2.5 text-sm text-zinc-300 leading-relaxed">
+              <li class="flex items-start gap-2.5"><span class="dot-gold"></span><span>Eliminated launch cover loading race with exponential retry &amp; Kotlin host semaphores.</span></li>
+              <li class="flex items-start gap-2.5"><span class="dot-gold"></span><span>Normalized tagged titles like (LICO) &amp; altTitles for reliable AniList recommendations.</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Simple Setup Guide -->
+      <section class="section shell" id="install">
+        <h2 class="section-title">30-Second Setup</h2>
+        <p class="section-sub">No terminal, no dependencies, no account required.</p>
+
+        <div class="steps-grid">
+          <div class="card-surface">
+            <h3 style="margin:0 0 12px;font-size:17px;color:#fff;">On Windows PC</h3>
+            <ol style="margin:0;padding-left:18px;color:#d4d4d8;font-size:13.5px;line-height:1.8;">
+              <li>Click <strong>Download KOMA.exe</strong> above.</li>
+              <li>Double-click <code class="mono" style="color:#fff;">KOMA-Portable.exe</code> (or click <em>More info → Run anyway</em> once).</li>
+              <li>Follow the quick interactive walkthrough and start reading.</li>
+            </ol>
+          </div>
+          <div class="card-surface">
+            <h3 style="margin:0 0 12px;font-size:17px;color:#fff;">On Android Phone or Tablet</h3>
+            <ol style="margin:0;padding-left:18px;color:#d4d4d8;font-size:13.5px;line-height:1.8;">
+              <li>Tap <strong>Download APK</strong> above (or scan the QR code with your phone camera).</li>
+              <li>Open the downloaded <code class="mono" style="color:#fff;">KOMA-Android.apk</code> and tap <strong>Allow from this source</strong> if prompted.</li>
+              <li>Tap <strong>Install</strong> and open <strong>KOMA</strong>.</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      KOMA Manga Sanctuary · Made by <span style="color:#EAC278;">VirtualDrum</span>
+    </footer>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
