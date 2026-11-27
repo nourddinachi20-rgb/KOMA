@@ -20,4 +20,20 @@ if (fs.existsSync(path.join(root, 'assets', 'icon.png'))) {
   fs.copyFileSync(path.join(root, 'assets', 'icon.png'), path.join(docsDir, 'icon.png'));
 }
 
-console.log('Built website cleanly into docs/ (index.html, app.js, icon.png)');
+const copyDir = (srcRel, dstRel) => {
+  const src = path.join(root, srcRel);
+  const dst = path.join(docsDir, dstRel);
+  if (!fs.existsSync(src)) return;
+  fs.mkdirSync(dst, { recursive: true });
+  for (const name of fs.readdirSync(src)) {
+    const fullSrc = path.join(src, name);
+    if (fs.statSync(fullSrc).isFile()) {
+      fs.copyFileSync(fullSrc, path.join(dst, name));
+    }
+  }
+};
+
+copyDir('website/screenshots', 'screenshots');
+copyDir('website/tiles', 'tiles');
+
+console.log('Built pure monochrome OLED website + screenshots + tiles into docs/');

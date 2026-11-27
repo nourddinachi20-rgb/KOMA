@@ -2,7 +2,6 @@ import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
 const DEFAULT_VERSION = '1.0.0';
-const DEFAULT_WIN_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Portable.exe`;
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -15,9 +14,34 @@ interface GitHubRelease {
   tag_name?: string;
   name?: string;
   body?: string;
-  published_at?: string;
   assets?: GitHubReleaseAsset[];
 }
+
+const SHOWCASE_SCREENS: Record<
+  string,
+  { src: string; caption: string; tag: string }
+> = {
+  home: {
+    src: './screenshots/desktop-home.png',
+    caption: 'Trending Hero Spotlight with advance bar, hourly feeds & Continue Reading',
+    tag: 'HOME SPOTLIGHT',
+  },
+  details: {
+    src: './screenshots/desktop-details.png',
+    caption: 'Series Page with AniList Related & Recommended cards + 30-chapter pagination',
+    tag: 'SERIES & CHAPTERS',
+  },
+  reader: {
+    src: './screenshots/desktop-reader.png',
+    caption: 'Distraction-free OLED Reader with Webtoon/RTL/Spread modes, Zoom & Cruise',
+    tag: 'OLED PRO READER',
+  },
+  explore: {
+    src: './screenshots/tablet-explore.png',
+    caption: '100+ verified EN/FR/AR sources including MangaBall, MangaDex, Asura & WeebCentral',
+    tag: 'EXPLORE CATALOG',
+  },
+};
 
 function formatMb(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -29,9 +53,9 @@ async function renderQr(url: string): Promise<void> {
   try {
     const svg = await QRCode.toString(url, {
       type: 'svg',
-      width: 120,
+      width: 118,
       margin: 1,
-      color: { dark: '#FFFFFF', light: '#0A0A0E' },
+      color: { dark: '#FFFFFF', light: '#0A0A0D' },
     });
     container.innerHTML = svg;
   } catch {
@@ -44,6 +68,29 @@ function detectPlatform(): 'android' | 'windows' | 'other' {
   if (ua.includes('android')) return 'android';
   if (ua.includes('windows')) return 'windows';
   return 'other';
+}
+
+function initShowcaseTabs(): void {
+  const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-screen-tab]'));
+  const img = document.getElementById('showcase-main-img') as HTMLImageElement | null;
+  const caption = document.getElementById('showcase-caption');
+  const tag = document.getElementById('showcase-tag');
+  if (!img || buttons.length === 0) return;
+
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.screenTab || 'home';
+      const data = SHOWCASE_SCREENS[key];
+      if (!data) return;
+
+      buttons.forEach((b) => b.classList.remove('tab-active'));
+      btn.classList.add('tab-active');
+
+      img.src = data.src;
+      if (caption) caption.textContent = data.caption;
+      if (tag) tag.textContent = data.tag;
+    });
+  });
 }
 
 function renderReleaseNotes(markdown: string, version: string): void {
@@ -79,13 +126,13 @@ function renderReleaseNotes(markdown: string, version: string): void {
     .map(
       (sec) => `
       <div class="card-surface p-6">
-        <div class="badge-pill mb-4">${sec.title.replace(/</g, '&lt;')}</div>
-        <ul class="space-y-2.5 text-sm text-zinc-300 leading-relaxed">
+        <div class="badge-mono mb-4">${sec.title.replace(/</g, '&lt;')}</div>
+        <ul class="notes-list">
           ${sec.items
             .map(
               (item) => `
-            <li class="flex items-start gap-2.5">
-              <span class="dot-gold"></span>
+            <li>
+              <span class="dot-white"></span>
               <span>${item.replace(/</g, '&lt;')}</span>
             </li>`,
             )
@@ -97,6 +144,8 @@ function renderReleaseNotes(markdown: string, version: string): void {
 }
 
 async function init(): Promise<void> {
+  initShowcaseTabs();
+
   const platform = detectPlatform();
   const winCard = document.getElementById('card-windows');
   const apkCard = document.getElementById('card-android');
@@ -149,7 +198,7 @@ async function init(): Promise<void> {
       renderReleaseNotes(rel.body, ver);
     }
   } catch {
-    // Fallback static v1.0.0 values remain cleanly active
+    // Static defaults stay active
   }
 }
 
