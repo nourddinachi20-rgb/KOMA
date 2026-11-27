@@ -1,0 +1,927 @@
+import { create } from 'zustand';
+import type {
+  AppSettings,
+  Category,
+  DownloadedChapter,
+  EngineStatus,
+  FilterMetadata,
+  HistoryEntry,
+  LibraryEntry,
+  Manga,
+  MangaChapter,
+  NavView,
+  ReaderSession,
+  ReadingStats,
+  ShowcaseRow,
+  SortOrder,
+  SourceInfo,
+  TrackerConfig,
+  UpdateCheckResult,
+  UpdateEntry,
+  UpdateProgress,
+} from '../types';
+import {
+  fetchChapterPages,
+  fetchMangaDetails,
+  fetchMangaList,
+  fetchSources,
+  getProxiedImageUrl,
+} from '../utils/api';
+
+export const HOUR_MS = 60 * 60 * 1000;
+
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const copy = [...arr];
+  let s = seed + 1;
+  for (let i = copy.length - 1; i > 0; i--) {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+export type BootStage = 'hydrating' | 'engine' | 'warming' | 'ready';
+
+export interface ToastItem {
+  id: string;
+  message: string;
+  tone: 'info' | 'success' | 'error';
+}
+
+interface ExploreCacheEntry {
+  items: Manga[];
+  sortOrder: SortOrder;
+  query: string;
+}
+
+interface AppState {
+  bootStage: BootStage;
+  engineStatus: EngineStatus;
+  sources: SourceInfo[];
+  sourcesLoading: boolean;
+  verifyingSources: boolean;
+  checkingUpdates: boolean;
+  categories: Category[];
+  library: LibraryEntry[];
+  updates: UpdateEntry[];
+  stats: ReadingStats;
+  trackerConfig: TrackerConfig;
+  history: HistoryEntry[];
+  downloads: DownloadedChapter[];
+  downloadProgress: Record<string, { done: number; total: number }>;
+  settings: AppSettings;
+  toasts: ToastItem[];
+
+  homeHourEpoch: number;
+  homeHeroItems: Manga[];
+  homeRows: ShowcaseRow[];
+  homeLoaded: boolean;
+  detailsCache: Record<string, Manga>;
+  filtersCache: Record<string, FilterMetadata>;
+  exploreCache: Record<string, ExploreCacheEntry>;
+  chapterPagesCache: Record<string, string[]>;
+
+  activeView: NavView;
+  exploreSource: string;
+  selectedManga: Manga | null;
+  readerSession: ReaderSession | null;
+  commandOpen: boolean;
+  commandQuery: string;
+  appVersion: string;
+  checkingAppUpdate: boolean;
+  appUpdateInfo: UpdateCheckResult | null;
+  appUpdateProgress: UpdateProgress | null;
+  showWhatsNew: boolean;
+  tutorialOpen: boolean;
+
+  setShowWhatsNew: (open: boolean) => void;
+  dismissWhatsNew: () => Promise<void>;
+  completeTutorial: () => Promise<void>;
+  replayTutorial: () => void;
+  checkForAppUpdate: (silent?: boolean) => Promise<UpdateCheckResult | null>;
+  installAppUpdate: () => Promise<void>;
+
+  notify: (message: string, tone?: 'info' | 'success' | 'error') => void;
+  dismissToast: (id: string) => void;
+  setActiveView: (view: NavView) => void;
+  setExploreSource: (source: string) => void;
+  openManga: (manga: Manga) => void;
+  closeManga: () => void;
+  openReader: (session: ReaderSession) => void;
+  closeReader: () => void;
+  setCommandOpen: (open: boolean) => void;
+  openCommandWithQuery: (query: string) => void;
+
+  bootstrap: () => Promise<void>;
+  loadHomeFeeds: (hourEpoch: number, force?: boolean) => Promise<void>;
+  prefetchMangaDetails: (manga: Manga) => Promise<Manga | null>;
+  prefetchChapterPages: (chapter: MangaChapter) => Promise<string[]>;
+  setFilterCache: (source: string, meta: FilterMetadata) => void;
+  setExploreCache: (source: string, entry: ExploreCacheEntry) => void;
+  refreshEngine: () => Promise<void>;
+  verifyWorkingSources: () => Promise<void>;
+  checkLibraryUpdates: () => Promise<number>;
+  clearUpdates: () => Promise<void>;
+  markChapterRead: (manga: Manga, chapterId: string, read?: boolean, chapterNumber?: number) => Promise<void>;
+  markPreviousChaptersRead: (manga: Manga, upToChapterId: string) => Promise<void>;
+  migrateLibraryManga: (oldKey: string, newManga: Manga) => Promise<void>;
+  recordReadingPulse: (pagesDelta: number, chapterCompleted: boolean, tags?: string[]) => Promise<void>;
+  refreshTracker: () => Promise<void>;
+  refreshAllData: () => Promise<void>;
+  toggleLibraryManga: (manga: Manga, categoryIds?: string[]) => Promise<void>;
+  updateLibraryCategories: (key: string, categoryIds: string[]) => Promise<void>;
+  saveCategories: (categories: Category[]) => Promise<void>;
+  recordHistory: (entry: HistoryEntry) => Promise<void>;
+  removeHistory: (key: string) => Promise<void>;
+  updateSettings: (patch: Partial<AppSettings>) => Promise<void>;
+  queueDownload: (manga: Manga, chapter: MangaChapter) => Promise<void>;
+  deleteDownload: (key: string) => Promise<void>;
+  importLocalArchives: () => Promise<void>;
+  importLocalFolder: () => Promise<void>;
+  importDroppedPaths: (paths: string[]) => Promise<void>;
+}
+
+const DEFAULT_SETTINGS: AppSettings = {
+  preferredLanguages: ['en', 'fr', 'ar'],
+  showNsfw: false,
+  pinnedSources: [
+    'MANGABALL_EN',
+    'MANGADEX',
+    'WEEBCENTRAL',
+    'ASURASCANS',
+    'MANGAPILL',
+    'MANGAREAD',
+    'LELMANGA',
+    'TEAMXNOVEL',
+  ],
+  defaultReaderMode: 'webtoon',
+  defaultFitMode: 'width',
+  mangaReaderPrefs: {},
+  autoBingeNextChapter: false,
+  brightness: 100,
+  contrast: 100,
+  warmth: 0,
+  oledInk: false,
+  oledTrueBlack: true,
+  ambientGlow: true,
+  preloadCount: 4,
+  autoScrollSpeed: 2,
+  discordRpc: false,
+  discordClientId: '',
+  autoCheckUpdates: true,
+  githubRepo: 'VirtualDrum/KOMA',
+  hasCompletedTutorial: false,
+  lastSeenVersion: '',
+  pendingWhatsNewNotes: '',
+};
+
+const ALLOWED_LOCALES = new Set(['en', 'fr', 'ar', '']);
+const HOME_CACHE_VERSION = 2;
+const HOME_NOISY_SOURCES = new Set(['MANGAPILL']);
+const inFlightDetails = new Map<string, Promise<Manga | null>>();
+const inFlightPages = new Map<string, Promise<string[]>>();
+
+export const useAppStore = create<AppState>((set, get) => ({
+  bootStage: 'hydrating',
+  engineStatus: { ready: false, port: null, url: null, sourcesCount: 0, error: null },
+  sources: [],
+  sourcesLoading: false,
+  verifyingSources: false,
+  checkingUpdates: false,
+  categories: [],
+  library: [],
+  updates: [],
+  stats: { chaptersCompleted: 0, pagesRead: 0, readingMinutes: 0, activeDays: [], genreCounts: {} },
+  trackerConfig: {},
+  history: [],
+  downloads: [],
+  downloadProgress: {},
+  settings: DEFAULT_SETTINGS,
+  toasts: [],
+
+  homeHourEpoch: Math.floor(Date.now() / HOUR_MS),
+  homeHeroItems: [],
+  homeRows: [],
+  homeLoaded: false,
+  detailsCache: {},
+  filtersCache: {},
+  exploreCache: {},
+  chapterPagesCache: {},
+
+  activeView: 'home',
+  exploreSource: 'MANGABALL_EN',
+  selectedManga: null,
+  readerSession: null,
+  commandOpen: false,
+  commandQuery: '',
+  appVersion: '1.0.0',
+  checkingAppUpdate: false,
+  appUpdateInfo: null,
+  appUpdateProgress: null,
+  showWhatsNew: false,
+  tutorialOpen: false,
+
+  setShowWhatsNew: (showWhatsNew) => set({ showWhatsNew }),
+
+  dismissWhatsNew: async () => {
+    const version = get().appVersion;
+    set({ showWhatsNew: false });
+    await get().updateSettings({ lastSeenVersion: version, pendingWhatsNewNotes: '' });
+  },
+
+  completeTutorial: async () => {
+    const version = get().appVersion;
+    set({ tutorialOpen: false });
+    await get().updateSettings({ hasCompletedTutorial: true, lastSeenVersion: version });
+  },
+
+  replayTutorial: () => set({ tutorialOpen: true }),
+
+  checkForAppUpdate: async (silent = false) => {
+    set({ checkingAppUpdate: true });
+    try {
+      const res = await window.noctis.checkForUpdate(get().settings.githubRepo);
+      set({ appUpdateInfo: res, checkingAppUpdate: false });
+      if (!silent) {
+        if (res.hasUpdate) {
+          get().notify(`Update available: v${res.latestVersion}`, 'info');
+        } else if (res.error) {
+          get().notify(res.error, 'info');
+        } else {
+          get().notify(`KOMA v${res.currentVersion} is up to date`, 'success');
+        }
+      }
+      return res;
+    } catch {
+      set({ checkingAppUpdate: false });
+      if (!silent) get().notify('Update check failed', 'error');
+      return null;
+    }
+  },
+
+  installAppUpdate: async () => {
+    const info = get().appUpdateInfo;
+    if (!info?.downloadUrl) {
+      get().notify('No compatible installer (.exe / .apk) found on latest release', 'error');
+      return;
+    }
+    set({
+      appUpdateProgress: {
+        downloaded: 0,
+        total: info.assetSize ?? 0,
+        percent: 0,
+        status: 'downloading',
+      },
+    });
+    const res = await window.noctis.downloadAndInstallUpdate({
+      downloadUrl: info.downloadUrl,
+      assetName: info.assetName || 'KOMA-Update',
+      latestVersion: info.latestVersion,
+      notes: info.notes || '',
+    });
+    if (!res.started && res.error) {
+      get().notify(res.error, 'error');
+      set({ appUpdateProgress: null });
+    }
+  },
+
+  notify: (message, tone = 'info') => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    set((s) => ({ toasts: [...s.toasts.slice(-3), { id, message, tone }] }));
+    setTimeout(() => {
+      get().dismissToast(id);
+    }, 3600);
+  },
+
+  dismissToast: (id) =>
+    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+
+  setActiveView: (activeView) => set({ activeView }),
+  setExploreSource: (exploreSource) => set({ exploreSource, activeView: 'explore' }),
+  openManga: (selectedManga) => set({ selectedManga }),
+  closeManga: () => set({ selectedManga: null }),
+  openReader: (readerSession) => set({ readerSession }),
+  closeReader: () => {
+    set({ readerSession: null });
+    void window.noctis.clearDiscord();
+  },
+  setCommandOpen: (commandOpen) => set((s) => ({ commandOpen, commandQuery: commandOpen ? s.commandQuery : '' })),
+  openCommandWithQuery: (commandQuery) => set({ commandOpen: true, commandQuery }),
+
+  setFilterCache: (source, meta) =>
+    set((s) => ({ filtersCache: { ...s.filtersCache, [source]: meta } })),
+
+  setExploreCache: (source, entry) =>
+    set((s) => ({ exploreCache: { ...s.exploreCache, [source]: entry } })),
+
+  prefetchMangaDetails: async (manga) => {
+    const key = `${manga.source}::${manga.id}`;
+    const cached = get().detailsCache[key];
+    if (cached && cached.chapters !== null) return cached;
+    if (manga.source === 'LOCAL') return manga;
+
+    const existingPromise = inFlightDetails.get(key);
+    if (existingPromise) return existingPromise;
+
+    const { engineStatus } = get();
+    if (!engineStatus.ready || !engineStatus.url) return null;
+
+    const promise = fetchMangaDetails(engineStatus.url, manga)
+      .then((full) => {
+        set((s) => ({ detailsCache: { ...s.detailsCache, [key]: full } }));
+        return full;
+      })
+      .catch(() => null)
+      .finally(() => {
+        inFlightDetails.delete(key);
+      });
+
+    inFlightDetails.set(key, promise);
+    return promise;
+  },
+
+  prefetchChapterPages: async (chapter) => {
+    const cacheKey = `${chapter.source}::${chapter.id}`;
+    const cached = get().chapterPagesCache[cacheKey];
+    if (cached && cached.length > 0) return cached;
+
+    const existing = inFlightPages.get(cacheKey);
+    if (existing) return existing;
+
+    const { engineStatus, downloads } = get();
+
+    const promise = (async () => {
+      if (chapter.source === 'LOCAL') {
+        return await window.noctis.getOfflinePages(chapter.url);
+      }
+      const offline = downloads.find((d) => d.chapterId === chapter.id && d.source === chapter.source);
+      if (offline) {
+        return await window.noctis.getOfflinePages(offline.cbzPath);
+      }
+      if (!engineStatus.ready || !engineStatus.url) return [];
+      const raw = await fetchChapterPages(engineStatus.url, chapter);
+      return raw.map((p) => getProxiedImageUrl(engineStatus.url, p.source, p.resolvedUrl || p.url));
+    })()
+      .then((urls) => {
+        if (urls.length > 0) {
+          set((s) => ({ chapterPagesCache: { ...s.chapterPagesCache, [cacheKey]: urls } }));
+        }
+        return urls;
+      })
+      .catch(() => [])
+      .finally(() => {
+        inFlightPages.delete(cacheKey);
+      });
+
+    inFlightPages.set(cacheKey, promise);
+    return promise;
+  },
+
+  loadHomeFeeds: async (hourEpoch, force = false) => {
+    const { engineStatus, sources, settings, homeLoaded, homeHourEpoch } = get();
+    if (!engineStatus.ready || !engineStatus.url || sources.length === 0) return;
+    if (!force && homeLoaded && homeHourEpoch === hourEpoch) return;
+
+    const preferredSources = settings.pinnedSources.filter(
+      (name) => !HOME_NOISY_SOURCES.has(name) && sources.some((s) => s.name === name),
+    );
+    const activeSources = (
+      preferredSources.length > 0
+        ? preferredSources
+        : sources
+            .filter(
+              (s) =>
+                !HOME_NOISY_SOURCES.has(s.name) &&
+                (settings.preferredLanguages.includes(s.locale) || s.locale === ''),
+            )
+            .map((s) => s.name)
+    ).slice(0, 5);
+
+    const rowTitles = [
+      'Trending Worldwide',
+      'Top Manga Hits',
+      'Most Read Series',
+      'Top Action & Manhwa',
+      'Fan Favorites',
+    ];
+
+    if (get().homeRows.length === 0) {
+      set({
+        homeRows: activeSources.map((src, idx) => ({
+          title: rowTitles[idx] ?? 'Top Popular',
+          subtitle: sources.find((s) => s.name === src)?.title ?? src,
+          source: src,
+          items: [],
+          loading: true,
+        })),
+      });
+    }
+
+    const builtRows: ShowcaseRow[] = activeSources.map((src, idx) => ({
+      title: rowTitles[idx] ?? 'Top Popular',
+      subtitle: sources.find((s) => s.name === src)?.title ?? src,
+      source: src,
+      items: [],
+      loading: true,
+    }));
+
+    await Promise.all(
+      activeSources.map(async (src, idx) => {
+        try {
+          const srcMeta = sources.find((s) => s.name === src);
+          const supported = srcMeta?.sortOrders ?? [];
+          const popularityOptions = (['POPULARITY_WEEK', 'POPULARITY_MONTH', 'POPULARITY'] as SortOrder[]).filter(
+            (o) => supported.includes(o),
+          );
+          const order: SortOrder =
+            popularityOptions.length > 0
+              ? popularityOptions[(hourEpoch + idx) % popularityOptions.length]
+              : supported[0] ?? 'POPULARITY';
+
+          const items = await fetchMangaList(engineStatus.url!, src, {
+            offset: 0,
+            order,
+          });
+          const valid = items.filter((m) => m.title && m.coverUrl);
+          // Keep top 4 overall hits leading each shelf, gently rotate top 5-16 each hour
+          const topTier = valid.slice(0, 4);
+          const midTier = seededShuffle(valid.slice(4, 16), hourEpoch + idx * 17);
+          const cleanItems = [...topTier, ...midTier].slice(0, 12);
+
+          builtRows[idx] = { ...builtRows[idx], items: cleanItems, loading: false };
+        } catch {
+          builtRows[idx] = { ...builtRows[idx], loading: false };
+        }
+      }),
+    );
+
+    // Assemble Hero Spotlight round-robin from settled rows in priority order (never race order)
+    const collectedHero: Manga[] = [];
+    for (let rank = 0; rank < 4 && collectedHero.length < 10; rank++) {
+      for (const row of builtRows) {
+        const cand = row.items[rank];
+        if (!cand) continue;
+        if (!collectedHero.some((x) => x.title.toLowerCase() === cand.title.toLowerCase())) {
+          collectedHero.push(cand);
+        }
+        if (collectedHero.length >= 10) break;
+      }
+    }
+
+    const finalHero = collectedHero.length > 0 ? collectedHero : get().homeHeroItems;
+    const finalRows = builtRows.some((r) => r.items.length > 0) ? builtRows : get().homeRows;
+    set({
+      homeHourEpoch: hourEpoch,
+      homeHeroItems: finalHero,
+      homeRows: finalRows,
+      homeLoaded: true,
+    });
+
+    if (finalRows.some((r) => r.items.length > 0)) {
+      window.noctis.saveHomeCache({
+        version: HOME_CACHE_VERSION,
+        hourEpoch,
+        heroItems: finalHero,
+        rows: finalRows,
+        savedAt: Date.now(),
+      });
+    }
+
+    // Lightly enrich only the top 3 spotlight entries so launch stays whisper-fast
+    for (const m of finalHero.slice(0, 3)) {
+      void get().prefetchMangaDetails(m);
+    }
+  },
+
+  bootstrap: async () => {
+    const api = window.noctis;
+    const [categories, library, updates, stats, trackerConfig, history, downloads, settings, homeCache, engineStatus, appVersion] =
+      await Promise.all([
+        api.getCategories(),
+        api.getLibrary(),
+        api.getUpdates(),
+        api.getStats(),
+        api.getTrackerConfig(),
+        api.getHistory(),
+        api.getDownloads(),
+        api.getSettings(),
+        api.getHomeCache(),
+        api.getEngineStatus(),
+        api.getAppVersion().catch(() => '1.0.0'),
+      ]);
+
+    const currentHour = Math.floor(Date.now() / HOUR_MS);
+    const validHomeCache =
+      homeCache &&
+      homeCache.version === HOME_CACHE_VERSION &&
+      homeCache.rows?.length > 0
+        ? homeCache
+        : null;
+    const cacheIsFresh =
+      Boolean(validHomeCache) &&
+      validHomeCache!.hourEpoch === currentHour &&
+      Date.now() - (validHomeCache!.savedAt ?? 0) < 20 * 60 * 1000;
+
+    const needsTutorial = !settings.hasCompletedTutorial;
+    const needsWhatsNew = !needsTutorial && settings.lastSeenVersion !== appVersion;
+
+    set({
+      categories,
+      library,
+      updates,
+      stats,
+      trackerConfig,
+      history,
+      downloads,
+      settings,
+      engineStatus,
+      appVersion,
+      tutorialOpen: needsTutorial,
+      showWhatsNew: needsWhatsNew,
+      bootStage: engineStatus.ready ? (cacheIsFresh ? 'ready' : 'warming') : 'engine',
+      ...(validHomeCache
+        ? {
+            homeHeroItems: validHomeCache.heroItems ?? [],
+            homeRows: validHomeCache.rows ?? [],
+            homeHourEpoch: validHomeCache.hourEpoch ?? currentHour,
+            homeLoaded: cacheIsFresh,
+          }
+        : {}),
+    });
+
+    api.onDownloadProgress(({ key, done, total }) => {
+      set((s) => ({
+        downloadProgress: { ...s.downloadProgress, [key]: { done, total } },
+      }));
+    });
+
+    api.onUpdateProgress((appUpdateProgress) => {
+      set({ appUpdateProgress });
+    });
+
+    const handleEngineReady = async (status: EngineStatus) => {
+      set({ engineStatus: status });
+      if (!status.ready || !status.url) {
+        if (status.error) set({ bootStage: 'ready' });
+        return;
+      }
+
+      if (!cacheIsFresh) set({ bootStage: 'warming' });
+      set({ sourcesLoading: true });
+      try {
+        const rawSources = await fetchSources(status.url, false);
+        const sources = rawSources.filter((s) => ALLOWED_LOCALES.has(s.locale));
+        const preferredFirst =
+          sources.find((s) => settings.pinnedSources.includes(s.name))?.name ||
+          sources[0]?.name ||
+          'MANGABALL_EN';
+        set({ sources, sourcesLoading: false, exploreSource: preferredFirst });
+
+        if (cacheIsFresh) {
+          set({ bootStage: 'ready' });
+        } else if (validHomeCache) {
+          set({ bootStage: 'ready' });
+          void get().loadHomeFeeds(currentHour, true);
+        } else {
+          await Promise.race([
+            get().loadHomeFeeds(currentHour, true),
+            new Promise((r) => setTimeout(r, 1800)),
+          ]);
+          set({ bootStage: 'ready' });
+        }
+
+        if (settings.autoCheckUpdates && library.length > 0) {
+          const oldest = Math.min(...library.map((l) => l.lastCheckedAt ?? 0));
+          if (Date.now() - oldest > 30 * 60 * 1000) {
+            setTimeout(() => {
+              void get().checkLibraryUpdates();
+            }, 8000);
+          }
+        }
+      } catch {
+        set({ sourcesLoading: false, bootStage: 'ready' });
+      }
+    };
+
+    const unsubEngine = api.onEngineStatus((nextStatus) => {
+      void handleEngineReady(nextStatus);
+    });
+
+    if (engineStatus.ready && engineStatus.url) {
+      unsubEngine();
+      await handleEngineReady(engineStatus);
+    } else {
+      setTimeout(() => {
+        if (get().bootStage !== 'ready') set({ bootStage: 'ready' });
+      }, 7500);
+    }
+  },
+
+  refreshEngine: async () => {
+    const engineStatus = await window.noctis.restartEngine();
+    set({ engineStatus });
+    if (engineStatus.ready && engineStatus.url) {
+      const rawSources = await fetchSources(engineStatus.url, false);
+      set({ sources: rawSources.filter((s) => ALLOWED_LOCALES.has(s.locale)) });
+      get().notify('Parser engine restarted', 'success');
+    }
+  },
+
+  verifyWorkingSources: async () => {
+    const { engineStatus, verifyingSources } = get();
+    if (!engineStatus.ready || !engineStatus.url || verifyingSources) return;
+    set({ verifyingSources: true });
+    try {
+      await fetch(`${engineStatus.url}/api/sources/verify`, { method: 'POST' });
+      const rawSources = await fetchSources(engineStatus.url, false);
+      const filtered = rawSources.filter((s) => ALLOWED_LOCALES.has(s.locale));
+      set({ sources: filtered });
+      get().notify(`${filtered.length} working sources verified`, 'success');
+    } finally {
+      set({ verifyingSources: false });
+    }
+  },
+
+  checkLibraryUpdates: async () => {
+    if (get().checkingUpdates) return 0;
+    set({ checkingUpdates: true });
+    try {
+      const res = await window.noctis.checkUpdates();
+      set({ updates: res.updates, library: res.library });
+      if (res.newCount > 0) {
+        get().notify(`${res.newCount} new chapter${res.newCount === 1 ? '' : 's'} found`, 'success');
+      } else {
+        get().notify('Library is up to date', 'info');
+      }
+      return res.newCount;
+    } finally {
+      set({ checkingUpdates: false });
+    }
+  },
+
+  clearUpdates: async () => {
+    const updates = await window.noctis.clearUpdates();
+    set({ updates });
+  },
+
+  markChapterRead: async (manga, chapterId, read = true, chapterNumber = 0) => {
+    const key = `${manga.source}::${manga.id}`;
+    const entry = get().library.find((x) => x.key === key);
+    if (!entry) {
+      if (read && chapterNumber > 0) {
+        void window.noctis.syncAniListProgress(manga.title, chapterNumber);
+      }
+      return;
+    }
+    const readSet = new Set(entry.readChapterIds ?? []);
+    if (read) readSet.add(chapterId);
+    else readSet.delete(chapterId);
+
+    const chapters = manga.chapters ?? entry.manga.chapters ?? [];
+    const unreadCount = chapters.filter((c) => !readSet.has(c.id)).length;
+    const library = await window.noctis.upsertLibrary({
+      ...entry,
+      readChapterIds: Array.from(readSet),
+      unreadCount,
+      lastReadAt: Date.now(),
+    });
+    set({ library });
+
+    if (read && chapterNumber > 0) {
+      void window.noctis.syncAniListProgress(manga.title, chapterNumber).then((r) => {
+        if (r.synced) get().notify(`Synced Ch. ${r.progress} to AniList`, 'success');
+      });
+    }
+  },
+
+  markPreviousChaptersRead: async (manga, upToChapterId) => {
+    const key = `${manga.source}::${manga.id}`;
+    const entry = get().library.find((x) => x.key === key);
+    if (!entry) return;
+    const chapters = manga.chapters ?? entry.manga.chapters ?? [];
+    const idx = chapters.findIndex((c) => c.id === upToChapterId);
+    if (idx < 0) return;
+
+    const readSet = new Set(entry.readChapterIds ?? []);
+    for (let i = 0; i <= idx; i++) {
+      readSet.add(chapters[i].id);
+    }
+    const unreadCount = chapters.filter((c) => !readSet.has(c.id)).length;
+    const library = await window.noctis.upsertLibrary({
+      ...entry,
+      readChapterIds: Array.from(readSet),
+      unreadCount,
+      lastReadAt: Date.now(),
+    });
+    set({ library });
+    get().notify('Marked previous chapters as read', 'info');
+  },
+
+  migrateLibraryManga: async (oldKey, newManga) => {
+    const oldEntry = get().library.find((x) => x.key === oldKey);
+    const oldHist = get().history.find((h) => h.key === oldKey);
+    const newFull = (await get().prefetchMangaDetails(newManga)) ?? newManga;
+    const newChapters = newFull.chapters ?? [];
+
+    const readChapterIds: string[] = [];
+    if (oldEntry?.readChapterIds?.length) {
+      const oldChapters = oldEntry.manga.chapters ?? [];
+      const readNums = new Set(
+        oldChapters
+          .filter((c) => oldEntry.readChapterIds!.includes(c.id))
+          .map((c) => c.number),
+      );
+      for (const ch of newChapters) {
+        if (readNums.has(ch.number)) readChapterIds.push(ch.id);
+      }
+    }
+
+    const newKey = `${newFull.source}::${newFull.id}`;
+    const newEntry: LibraryEntry = {
+      key: newKey,
+      manga: newFull,
+      categoryIds: oldEntry?.categoryIds ?? [get().categories[0]?.id ?? 'reading'],
+      addedAt: oldEntry?.addedAt ?? Date.now(),
+      lastReadAt: Date.now(),
+      totalChapters: newChapters.length,
+      knownChapterIds: newChapters.map((c) => c.id),
+      readChapterIds,
+      unreadCount: newChapters.filter((c) => !readChapterIds.includes(c.id)).length,
+    };
+
+    if (oldEntry) {
+      await window.noctis.removeLibrary(oldKey);
+    }
+    const library = await window.noctis.upsertLibrary(newEntry);
+
+    let history = get().history;
+    if (oldHist) {
+      const matched =
+        newChapters.find((c) => c.number === oldHist.chapterNumber) ?? newChapters[0];
+      if (matched) {
+        await window.noctis.removeHistory(oldKey);
+        history = await window.noctis.upsertHistory({
+          key: newKey,
+          manga: newFull,
+          chapterId: matched.id,
+          chapterNumber: matched.number,
+          chapterTitle: matched.title || `Chapter ${matched.number || ''}`,
+          pageIndex: oldHist.pageIndex,
+          totalPages: oldHist.totalPages,
+          updatedAt: Date.now(),
+        });
+      }
+    }
+
+    set({ library, history, selectedManga: newFull });
+    get().notify(`Migrated to ${newFull.source}`, 'success');
+  },
+
+  recordReadingPulse: async (pagesDelta, chapterCompleted, tags) => {
+    const stats = await window.noctis.recordStats({
+      pagesDelta,
+      chapterCompleted,
+      minutesDelta: chapterCompleted ? 3 : 0,
+      tags,
+    });
+    set({ stats });
+  },
+
+  refreshTracker: async () => {
+    const trackerConfig = await window.noctis.getTrackerConfig();
+    set({ trackerConfig });
+  },
+
+  refreshAllData: async () => {
+    const api = window.noctis;
+    const [categories, library, updates, stats, trackerConfig, history, downloads, settings] =
+      await Promise.all([
+        api.getCategories(),
+        api.getLibrary(),
+        api.getUpdates(),
+        api.getStats(),
+        api.getTrackerConfig(),
+        api.getHistory(),
+        api.getDownloads(),
+        api.getSettings(),
+      ]);
+    set({ categories, library, updates, stats, trackerConfig, history, downloads, settings });
+  },
+
+  toggleLibraryManga: async (manga, categoryIds) => {
+    const key = `${manga.source}::${manga.id}`;
+    const exists = get().library.some((x) => x.key === key);
+    if (exists) {
+      const library = await window.noctis.removeLibrary(key);
+      set({ library });
+      get().notify('Removed from Library', 'info');
+    } else {
+      const defaultCat = get().categories[0]?.id ?? 'reading';
+      const chapters = manga.chapters ?? [];
+      const entry: LibraryEntry = {
+        key,
+        manga,
+        categoryIds: categoryIds?.length ? categoryIds : [defaultCat],
+        addedAt: Date.now(),
+        totalChapters: chapters.length,
+        knownChapterIds: chapters.map((c) => c.id),
+        readChapterIds: [],
+        unreadCount: 0,
+      };
+      const library = await window.noctis.upsertLibrary(entry);
+      set({ library });
+      get().notify(`Added "${manga.title}" to Library`, 'success');
+    }
+  },
+
+  updateLibraryCategories: async (key, categoryIds) => {
+    const existing = get().library.find((x) => x.key === key);
+    if (!existing) return;
+    const library = await window.noctis.upsertLibrary({ ...existing, categoryIds });
+    set({ library });
+  },
+
+  saveCategories: async (categories) => {
+    const saved = await window.noctis.saveCategories(categories);
+    set({ categories: saved });
+  },
+
+  recordHistory: async (entry) => {
+    const history = await window.noctis.upsertHistory(entry);
+    set({ history });
+  },
+
+  removeHistory: async (key) => {
+    const history = await window.noctis.removeHistory(key);
+    set({ history });
+  },
+
+  updateSettings: async (patch) => {
+    const settings = await window.noctis.saveSettings(patch);
+    set({ settings });
+  },
+
+  queueDownload: async (manga, chapter) => {
+    const key = `${manga.source}::${manga.id}::${chapter.id}`;
+    set((s) => ({
+      downloadProgress: { ...s.downloadProgress, [key]: { done: 0, total: 1 } },
+    }));
+    try {
+      await window.noctis.downloadChapter({
+        source: manga.source,
+        mangaId: manga.id,
+        mangaTitle: manga.title,
+        coverUrl: manga.largeCoverUrl || manga.coverUrl || undefined,
+        chapter,
+      });
+      const downloads = await window.noctis.getDownloads();
+      set((s) => {
+        const nextProg = { ...s.downloadProgress };
+        delete nextProg[key];
+        return { downloads, downloadProgress: nextProg };
+      });
+      get().notify(`Downloaded Ch. ${chapter.number || ''}`, 'success');
+    } catch (err) {
+      set((s) => {
+        const nextProg = { ...s.downloadProgress };
+        delete nextProg[key];
+        return { downloadProgress: nextProg };
+      });
+      get().notify(err instanceof Error ? err.message : 'Download failed', 'error');
+      throw err;
+    }
+  },
+
+  deleteDownload: async (key) => {
+    const downloads = await window.noctis.deleteDownload(key);
+    set({ downloads });
+  },
+
+  importLocalArchives: async () => {
+    const imported = await window.noctis.importLocalArchive();
+    if (imported.length > 0) {
+      const library = await window.noctis.getLibrary();
+      set({ library, activeView: 'library' });
+      get().notify(`Imported ${imported.length} archive(s)`, 'success');
+    }
+  },
+
+  importLocalFolder: async () => {
+    const imported = await window.noctis.importLocalFolder();
+    if (imported.length > 0) {
+      const library = await window.noctis.getLibrary();
+      set({ library, activeView: 'library' });
+      get().notify(`Imported ${imported.length} folder(s)`, 'success');
+    }
+  },
+
+  importDroppedPaths: async (paths) => {
+    const imported = await window.noctis.importLocalPaths(paths);
+    if (imported.length > 0) {
+      const library = await window.noctis.getLibrary();
+      set({ library, activeView: 'library' });
+      get().notify(`Imported ${imported.length} item(s)`, 'success');
+    }
+  },
+}));

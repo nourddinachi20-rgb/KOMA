@@ -1,0 +1,35 @@
+# Dependencies & Build Outputs
+node_modules/
+dist/
+dist-electron/
+release/
+release-*/
+
+# Bundled / Generated Engine Binaries & JRE (built locally or shipped via GitHub Releases)
+engine/build/
+engine/jre/
+engine/.gradle/
+.gradle/
+
+# Vendor Parser Build Outputs
+vendor/kotatsu-parsers/build/
+vendor/kotatsu-parsers/.gradle/
+vendor/kotatsu-parsers/kotatsu-parsers-ksp/build/
+
+# Android Build & Local SDK Config
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+*.apk
+*.aab
+*.ap_
+
+# IDE & OS Temp Files
+.vscode/
+.idea/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
