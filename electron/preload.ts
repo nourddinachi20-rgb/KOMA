@@ -43,6 +43,8 @@ export const noctisApi = {
   importLocalPaths: (paths: string[]) => ipcRenderer.invoke('local:importPaths', paths),
   exportBackup: () => ipcRenderer.invoke('backup:export'),
   importBackup: () => ipcRenderer.invoke('backup:import'),
+  pickBackupRaw: () => ipcRenderer.invoke('backup:pickRaw') as Promise<{ fileName: string; base64: string } | null>,
+  applyBackupData: (raw: Record<string, unknown>) => ipcRenderer.invoke('backup:applyData', raw) as Promise<boolean>,
 
   // AniList tracker & Discord RPC
   getTrackerConfig: () => ipcRenderer.invoke('tracker:getConfig'),

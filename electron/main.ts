@@ -189,12 +189,36 @@ function registerIpc(): void {
   ipcMain.handle('backup:import', async () => {
     if (!mainWindow) return false;
     const res = await dialog.showOpenDialog(mainWindow, {
-      title: 'Restore KOMA Backup',
+      title: 'Restore KOMA / Kotatsu / Mihon / Komikku Backup',
       properties: ['openFile'],
-      filters: [{ name: 'JSON Backup', extensions: ['json'] }],
+      filters: [
+        { name: 'Supported Backups', extensions: ['json', 'bk', 'zip', 'tachibk', 'gz'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
     });
     if (res.canceled || res.filePaths.length === 0) return false;
     const raw = JSON.parse(fs.readFileSync(res.filePaths[0], 'utf8')) as Record<string, unknown>;
+    storageManager.importBackup(raw);
+    return true;
+  });
+
+  ipcMain.handle('backup:pickRaw', async () => {
+    if (!mainWindow) return null;
+    const res = await dialog.showOpenDialog(mainWindow, {
+      title: 'Restore KOMA / Kotatsu / Mihon / Komikku Backup',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Manga Backups (KOMA, Kotatsu, Mihon, Komikku)', extensions: ['json', 'bk', 'zip', 'tachibk', 'gz'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    });
+    if (res.canceled || res.filePaths.length === 0) return null;
+    const fp = res.filePaths[0];
+    const buf = fs.readFileSync(fp);
+    return { fileName: path.basename(fp), base64: buf.toString('base64') };
+  });
+
+  ipcMain.handle('backup:applyData', (_, raw: Record<string, unknown>) => {
     storageManager.importBackup(raw);
     return true;
   });

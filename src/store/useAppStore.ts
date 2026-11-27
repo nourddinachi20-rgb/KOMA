@@ -27,6 +27,11 @@ import {
   fetchSources,
   getProxiedImageUrl,
 } from '../utils/api';
+import {
+  base64ToUint8Array,
+  parseAnyBackupBytes,
+  type BackupSourceFormat,
+} from '../utils/backupImporter';
 import { applyCustomizationToDocument } from '../utils/theme';
 
 export const HOUR_MS = 60 * 60 * 1000;
@@ -141,6 +146,14 @@ interface AppState {
   importLocalArchives: () => Promise<void>;
   importLocalFolder: () => Promise<void>;
   importDroppedPaths: (paths: string[]) => Promise<void>;
+  restoreUnifiedBackup: () => Promise<{
+    ok: boolean;
+    format?: BackupSourceFormat;
+    libraryCount?: number;
+    categoryCount?: number;
+    historyCount?: number;
+    unresolvedExternalCount?: number;
+  }>;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -328,14 +341,40 @@ export const useAppStore = create<AppState>((set, get) => ({
     const existingPromise = inFlightDetails.get(key);
     if (existingPromise) return existingPromise;
 
-    const { engineStatus } = get();
+    const { engineStatus, sources } = get();
     if (!engineStatus.ready || !engineStatus.url) return null;
 
-    const promise = fetchMangaDetails(engineStatus.url, manga)
-      .then((full) => {
-        set((s) => ({ detailsCache: { ...s.detailsCache, [key]: full } }));
-        return full;
-      })
+    const promise = (async () => {
+      // Imported Mihon/Komikku entry: resolve real KOMA manga on the mapped source on first open
+      if (manga.id.startsWith('mihon-') && sources.some((s) => s.name === manga.source)) {
+        const candidates = await fetchMangaList(engineStatus.url!, manga.source, {
+          query: manga.title,
+        }).catch(() => []);
+        if (candidates.length > 0) {
+          const normTitle = manga.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const best =
+            candidates.find(
+              (c) => c.title.toLowerCase().replace(/[^a-z0-9]/g, '') === normTitle,
+            ) ?? candidates[0];
+          const resolvedFull = await fetchMangaDetails(engineStatus.url!, best).catch(() => null);
+          if (resolvedFull) {
+            const newKey = `${resolvedFull.source}::${resolvedFull.id}`;
+            if (get().library.some((e) => e.key === key)) {
+              await get().migrateLibraryManga(key, resolvedFull);
+            }
+            set((s) => ({
+              detailsCache: { ...s.detailsCache, [key]: resolvedFull, [newKey]: resolvedFull },
+              selectedManga: s.selectedManga?.id === manga.id ? resolvedFull : s.selectedManga,
+            }));
+            return resolvedFull;
+          }
+        }
+      }
+
+      const full = await fetchMangaDetails(engineStatus.url!, manga);
+      set((s) => ({ detailsCache: { ...s.detailsCache, [key]: full } }));
+      return full;
+    })()
       .catch(() => null)
       .finally(() => {
         inFlightDetails.delete(key);
@@ -933,5 +972,112 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ library, activeView: 'library' });
       get().notify(`Imported ${imported.length} item(s)`, 'success');
     }
+  },
+
+  restoreUnifiedBackup: async () => {
+    const raw = await window.noctis.pickBackupRaw();
+    if (!raw || !raw.base64) return { ok: false };
+
+    const bytes = base64ToUint8Array(raw.base64);
+    const parsed = await parseAnyBackupBytes(bytes, raw.fileName, get().sources);
+
+    if (parsed.format === 'koma') {
+      await window.noctis.applyBackupData({
+        categories: parsed.categories,
+        library: parsed.library,
+        history: parsed.history,
+        ...(parsed.settings ? { settings: parsed.settings } : {}),
+        ...(parsed.stats ? { stats: parsed.stats } : {}),
+      });
+      await get().refreshAllData();
+      get().notify(`Restored KOMA backup (${parsed.library.length} series)`, 'success');
+      return {
+        ok: true,
+        format: 'koma',
+        libraryCount: parsed.library.length,
+        categoryCount: parsed.categories.length,
+        historyCount: parsed.history.length,
+        unresolvedExternalCount: 0,
+      };
+    }
+
+    // Kotatsu or Mihon/Komikku: merge cleanly into existing library/categories without wiping user data
+    const existingCats = [...get().categories];
+    const catIdRemap = new Map<string, string>();
+    let nextOrder = existingCats.length;
+    let addedCats = 0;
+
+    for (const c of parsed.categories) {
+      const byName = existingCats.find(
+        (ex) => ex.name.trim().toLowerCase() === c.name.trim().toLowerCase(),
+      );
+      if (byName) {
+        catIdRemap.set(c.id, byName.id);
+      } else {
+        existingCats.push({ ...c, order: nextOrder++ });
+        catIdRemap.set(c.id, c.id);
+        addedCats++;
+      }
+    }
+
+    const mergedLibMap = new Map<string, LibraryEntry>();
+    for (const item of get().library) {
+      mergedLibMap.set(item.key, { ...item });
+    }
+
+    let addedLib = 0;
+    for (const entry of parsed.library) {
+      const remappedCats = Array.from(
+        new Set(entry.categoryIds.map((id) => catIdRemap.get(id) ?? id)),
+      );
+      const prev = mergedLibMap.get(entry.key);
+      if (prev) {
+        prev.categoryIds = Array.from(new Set([...prev.categoryIds, ...remappedCats]));
+        if (entry.readChapterIds?.length) {
+          prev.readChapterIds = Array.from(
+            new Set([...(prev.readChapterIds ?? []), ...entry.readChapterIds]),
+          );
+        }
+      } else {
+        mergedLibMap.set(entry.key, { ...entry, categoryIds: remappedCats });
+        addedLib++;
+      }
+    }
+
+    const mergedHistMap = new Map<string, HistoryEntry>();
+    for (const h of get().history) mergedHistMap.set(h.key, h);
+    let addedHist = 0;
+    for (const h of parsed.history) {
+      const prev = mergedHistMap.get(h.key);
+      if (!prev || h.updatedAt > prev.updatedAt) {
+        if (!prev) addedHist++;
+        mergedHistMap.set(h.key, h);
+      }
+    }
+
+    const mergedLib = Array.from(mergedLibMap.values());
+    const mergedHist = Array.from(mergedHistMap.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+
+    await window.noctis.applyBackupData({
+      categories: existingCats,
+      library: mergedLib,
+      history: mergedHist,
+    });
+    await get().refreshAllData();
+
+    const label = parsed.format === 'kotatsu' ? 'Kotatsu' : 'Mihon / Komikku';
+    get().notify(
+      `Imported ${label} backup: ${addedLib} new series (${parsed.library.length} total)`,
+      'success',
+    );
+
+    return {
+      ok: true,
+      format: parsed.format,
+      libraryCount: parsed.library.length,
+      categoryCount: addedCats,
+      historyCount: addedHist,
+      unresolvedExternalCount: parsed.unresolvedExternalCount,
+    };
   },
 }));

@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.util.Base64
 import androidx.activity.result.ActivityResult
 import androidx.core.content.FileProvider
 import com.getcapacitor.JSArray
@@ -305,12 +306,14 @@ class KomaNativePlugin : Plugin() {
         if (call == null) return
         val uri = result.data?.data
         if (result.resultCode == Activity.RESULT_OK && uri != null) {
-            val txt = runCatching {
-                context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: ""
+            val b64 = runCatching {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+                if (bytes.isEmpty()) "" else Base64.encodeToString(bytes, Base64.NO_WRAP)
             }.getOrDefault("")
-            call.resolve(JSObject().put("json", txt))
+            val name = queryDisplayName(uri) ?: uri.lastPathSegment ?: "backup"
+            call.resolve(JSObject().put("base64", b64).put("fileName", name))
         } else {
-            call.resolve(JSObject().put("json", ""))
+            call.resolve(JSObject().put("base64", "").put("fileName", ""))
         }
     }
 

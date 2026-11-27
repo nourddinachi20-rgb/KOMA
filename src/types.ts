@@ -344,6 +344,8 @@ declare global {
       importLocalPaths: (paths: string[]) => Promise<LibraryEntry[]>;
       exportBackup: () => Promise<boolean>;
       importBackup: () => Promise<boolean>;
+      pickBackupRaw: () => Promise<{ fileName: string; base64: string } | null>;
+      applyBackupData: (raw: Record<string, unknown>) => Promise<boolean>;
       getTrackerConfig: () => Promise<TrackerConfig>;
       setAniListToken: (token: string) => Promise<TrackerConfig>;
       disconnectAniList: () => Promise<TrackerConfig>;

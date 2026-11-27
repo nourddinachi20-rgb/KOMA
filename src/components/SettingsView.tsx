@@ -35,6 +35,7 @@ export function SettingsView() {
     refreshTracker,
     setCommandOpen,
     notify,
+    restoreUnifiedBackup,
     appVersion,
     checkingAppUpdate,
     appUpdateInfo,
@@ -85,10 +86,27 @@ export function SettingsView() {
   };
 
   const handleImport = async () => {
-    const ok = await window.noctis.importBackup();
-    if (ok) {
-      await refreshAllData();
-      setStatusMsg('Backup restored.');
+    setStatusMsg(null);
+    try {
+      const res = await restoreUnifiedBackup();
+      if (!res.ok) return;
+      const appName =
+        res.format === 'kotatsu'
+          ? 'Kotatsu'
+          : res.format === 'mihon'
+            ? 'Mihon / Komikku'
+            : 'KOMA';
+      const unmappedNote =
+        res.unresolvedExternalCount && res.unresolvedExternalCount > 0
+          ? ` (${res.unresolvedExternalCount} used external extensions — open any entry and click Migrate Source to pick a KOMA source)`
+          : '';
+      setStatusMsg(
+        `Restored ${appName} backup: ${res.libraryCount ?? 0} series, ${res.categoryCount ?? 0} new categories, ${res.historyCount ?? 0} history items.${unmappedNote}`,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to parse backup file';
+      notify(msg, 'error');
+      setStatusMsg(msg);
     }
   };
 
@@ -524,10 +542,11 @@ export function SettingsView() {
 
             <button
               onClick={handleImport}
+              title="Supports KOMA (.json), Kotatsu (.bk / .bk.zip), Mihon & Komikku (.tachibk / .proto.gz)"
               className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-xs font-medium text-white hover:bg-white/10 cursor-pointer"
             >
               <UploadCloud className="h-3.5 w-3.5" />
-              <span>{t.settings.restoreBackup}</span>
+              <span>{t.settings.restoreBackup} (.json / .bk / .tachibk)</span>
             </button>
 
             <button

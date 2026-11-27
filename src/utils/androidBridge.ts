@@ -6,7 +6,7 @@ interface KomaNativePluginInterface {
   getSplashCoverPaths(): Promise<{ paths: string[] }>;
   getOfflinePagePaths(options: { cbzPath: string }): Promise<{ paths: string[] }>;
   pickCbzFiles(): Promise<{ json: string }>;
-  pickBackupFile(): Promise<{ json: string }>;
+  pickBackupFile(): Promise<{ json?: string; base64?: string; fileName?: string }>;
   saveBackupFile(options: { json: string }): Promise<{ ok: boolean }>;
   solveCloudflare(options: { url: string }): Promise<{ ok: boolean; injected: number; error?: string }>;
   getEngineStatus(): Promise<{ ready: boolean; port: number | null; url: string | null; sourcesCount: number; error: string | null }>;
@@ -115,6 +115,19 @@ export function installAndroidBridgeIfNeeded(): void {
       if (!res.json) return false;
       return rpc<boolean>('importBackupJson', { json: res.json });
     },
+    pickBackupRaw: async () => {
+      const res = await KomaNative.pickBackupFile();
+      if (res.base64) {
+        return { fileName: res.fileName || 'backup', base64: res.base64 };
+      }
+      if (res.json) {
+        const b64 = btoa(unescape(encodeURIComponent(res.json)));
+        return { fileName: res.fileName || 'backup.json', base64: b64 };
+      }
+      return null;
+    },
+    applyBackupData: async (raw: Record<string, unknown>) =>
+      rpc<boolean>('importBackupJson', { json: JSON.stringify(raw) }),
     getTrackerConfig: () => rpc('getTrackerConfig'),
     setAniListToken: (token: string) => rpc('setAniListToken', { token }),
     disconnectAniList: () => rpc('disconnectAniList'),
