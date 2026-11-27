@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bug, CheckCircle2, Sparkles, Wrench, X } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import { useT } from '../utils/i18n';
 import { parseChangelogSections } from '../utils/releaseInfo';
 
 export function WhatsNewModal() {
@@ -13,6 +14,7 @@ export function WhatsNewModal() {
     appUpdateInfo,
     dismissWhatsNew,
   } = useAppStore();
+  const t = useT();
 
   const visible = bootStage === 'ready' && !tutorialOpen && showWhatsNew;
   const rawNotes = settings.pendingWhatsNewNotes || appUpdateInfo?.notes || '';
@@ -35,17 +37,17 @@ export function WhatsNewModal() {
             className="flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/15 bg-[#09090D] shadow-[0_32px_90px_rgba(0,0,0,0.95)]"
           >
             {/* Header */}
-            <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] bg-gradient-to-r from-[#EAC278]/10 via-transparent to-transparent px-6 py-5">
+            <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] px-6 py-5">
               <div>
-                <div className="inline-flex items-center gap-1.5 rounded-full border border-[#EAC278]/35 bg-[#EAC278]/10 px-3 py-1 font-mono-tech text-[10px] font-semibold uppercase tracking-[0.2em] text-[#EAC278]">
+                <div className="accent-pill inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono-tech text-[10px] font-semibold uppercase tracking-[0.2em]">
                   <Sparkles className="h-3 w-3" />
-                  <span>Release Notes</span>
+                  <span>{t.whatsNew.badge}</span>
                 </div>
                 <h2 className="mt-2.5 text-2xl font-extrabold tracking-tight text-white">
-                  What&apos;s New in ver : {appVersion}
+                  {t.whatsNew.titlePrefix} {appVersion}
                 </h2>
                 <p className="mt-1 text-xs text-zinc-400">
-                  KOMA Manga Sanctuary · Made by VirtualDrum
+                  KOMA · VirtualDrum
                 </p>
               </div>
               <button
@@ -66,7 +68,7 @@ export function WhatsNewModal() {
                     ? 'text-emerald-300 border-emerald-400/25 bg-emerald-400/10'
                     : sec.tone === 'improvements'
                       ? 'text-sky-300 border-sky-400/25 bg-sky-400/10'
-                      : 'text-[#EAC278] border-[#EAC278]/30 bg-[#EAC278]/10';
+                      : 'accent-pill';
                 return (
                   <div
                     key={sec.title}
@@ -95,10 +97,10 @@ export function WhatsNewModal() {
             <div className="flex items-center justify-end border-t border-white/[0.08] bg-black/40 px-6 py-4">
               <button
                 onClick={() => void dismissWhatsNew()}
-                className="flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-xs font-semibold text-black transition hover:bg-zinc-200 cursor-pointer"
+                className="accent-bg flex items-center gap-2 rounded-full px-6 py-2.5 text-xs font-semibold transition cursor-pointer"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                <span>Got It · Enter KOMA</span>
+                <span>{t.whatsNew.gotIt}</span>
               </button>
             </div>
           </motion.div>

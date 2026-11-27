@@ -66,6 +66,9 @@ export interface DownloadedChapter {
 
 export interface AppSettings {
   preferredLanguages: string[];
+  uiLanguage: 'en' | 'fr' | 'ar';
+  uiTheme: 'oled' | 'dark' | 'paper';
+  accentColor: string;
   showNsfw: boolean;
   pinnedSources: string[];
   defaultReaderMode: 'webtoon' | 'rtl' | 'ltr' | 'double';
@@ -98,6 +101,9 @@ const DEFAULT_CATEGORIES: Category[] = [
 
 const DEFAULT_SETTINGS: AppSettings = {
   preferredLanguages: ['en', 'fr', 'ar'],
+  uiLanguage: 'en',
+  uiTheme: 'oled',
+  accentColor: '#FFFFFF',
   showNsfw: false,
   pinnedSources: [
     'MANGABALL_EN',

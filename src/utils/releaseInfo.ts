@@ -9,7 +9,7 @@ export interface ChangelogSection {
 export const DEFAULT_WHATS_NEW_NOTES = `### New Features
 - **Android Phone & Tablet App:** Native embedded Kotlin parser engine, adaptive bottom dock & tablet rails, touch pinch-to-zoom, and WebView Cloudflare solver.
 - **In-App GitHub Auto-Updater:** Check version & update both Windows (.exe) and Android (.apk) straight from Settings with automatic restart.
-- **Interactive Onboarding Tour:** Guided step-by-step walkthrough of Hero spotlight, Explore sources, Pro OLED Reader, and Offline Sanctuary.
+- **Interactive Onboarding Tour:** Step-by-step walkthrough of Home, Explore, Reader, and Offline downloads.
 - **In-Reader Chapter List & Page Scrubber:** Jump chapters mid-read (C) and scrub with live page tooltips.
 
 ### Improvements & Performance

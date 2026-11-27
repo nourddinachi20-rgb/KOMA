@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, HardDrive, Play, Trash2 } from 'lucide-react
 import { useAppStore } from '../store/useAppStore';
 import type { DownloadedChapter } from '../types';
 import { getProxiedImageUrl } from '../utils/api';
+import { useT } from '../utils/i18n';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -11,6 +12,7 @@ function formatBytes(bytes: number): string {
 }
 
 export function DownloadsView() {
+  const t = useT();
   const { downloads, downloadProgress, deleteDownload, openReader, engineStatus, library, notify } =
     useAppStore();
   const [expandedSeries, setExpandedSeries] = useState<Record<string, boolean>>({});
@@ -126,9 +128,9 @@ export function DownloadsView() {
     <div className="flex h-full w-full flex-col overflow-hidden">
       <div className="flex items-center justify-between border-b border-white/[0.07] px-6 py-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Offline Sanctuary</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">{t.downloads.title}</h1>
           <p className="font-mono-tech text-xs text-zinc-500">
-            {downloads.length} chapters cached · {formatBytes(totalBytes)} on disk
+            {downloads.length} {t.downloads.savedOffline} · {formatBytes(totalBytes)}
           </p>
         </div>
       </div>

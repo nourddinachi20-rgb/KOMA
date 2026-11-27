@@ -1,5 +1,5 @@
 const colorCache = new Map<string, string>();
-const DEFAULT_AMBIENT = '212, 182, 130'; // Warm champagne gold fallback
+const DEFAULT_AMBIENT = '255, 255, 255'; // Pure monochrome white fallback
 
 /**
  * Samples a cover image on an offscreen canvas and extracts a rich, saturated

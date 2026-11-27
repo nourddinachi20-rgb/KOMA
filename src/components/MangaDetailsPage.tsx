@@ -316,7 +316,7 @@ export function MangaDetailsPage() {
                 rel="noreferrer"
                 className="oled-glass-subtle flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs text-zinc-300 transition hover:border-white/25 hover:text-white"
               >
-                <Sparkles className="h-3.5 w-3.5 text-[#EAC278]" />
+                <Sparkles className="h-3.5 w-3.5 accent-fg" />
                 <span>AniList</span>
               </a>
             )}
@@ -360,8 +360,8 @@ export function MangaDetailsPage() {
                 </span>
               )}
               {(manga.rating > 0 || anilist?.averageScore) && (
-                <span className="flex items-center gap-1 rounded-full border border-amber-400/25 bg-amber-400/10 px-3 py-1 text-amber-300">
-                  <Star className="h-3 w-3 fill-amber-300" />
+                <span className="flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-zinc-200">
+                  <Star className="h-3 w-3 fill-white text-white" />
                   {manga.rating > 0
                     ? (manga.rating * 10).toFixed(1)
                     : `${((anilist?.averageScore ?? 0) / 10).toFixed(1)} AL`}
@@ -765,7 +765,7 @@ export function MangaDetailsPage() {
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                           />
                         )}
-                        <span className="absolute left-2 top-2 rounded-md border border-white/15 bg-black/80 px-1.5 py-0.5 font-mono-tech text-[9px] uppercase tracking-wide text-[#EAC278]">
+                        <span className="accent-fg absolute left-2 top-2 rounded-md border border-white/15 bg-black/80 px-1.5 py-0.5 font-mono-tech text-[9px] uppercase tracking-wide">
                           {rel.relationType}
                         </span>
                       </div>

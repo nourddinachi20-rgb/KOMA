@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Bell, Download, Loader2, Play, RefreshCw, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { getProxiedImageUrl } from '../utils/api';
+import { useT } from '../utils/i18n';
 
 function dayLabel(ts: number): string {
   const d = new Date(ts);
@@ -16,6 +17,7 @@ function dayLabel(ts: number): string {
 }
 
 export function UpdatesView() {
+  const t = useT();
   const {
     updates,
     checkingUpdates,
@@ -29,6 +31,13 @@ export function UpdatesView() {
     engineStatus,
   } = useAppStore();
 
+  const labelMap: Record<string, string> = {
+    Today: t.updates.today,
+    Yesterday: t.updates.yesterday,
+    'This Week': t.updates.thisWeek,
+    Earlier: t.updates.earlier,
+  };
+
   const grouped = useMemo(() => {
     const order = ['Today', 'Yesterday', 'This Week', 'Earlier'];
     const map = new Map<string, typeof updates>();
@@ -39,17 +48,17 @@ export function UpdatesView() {
       map.set(lbl, list);
     }
     return order
-      .map((label) => ({ label, items: map.get(label) ?? [] }))
+      .map((label) => ({ label: labelMap[label] ?? label, items: map.get(label) ?? [] }))
       .filter((g) => g.items.length > 0);
-  }, [updates]);
+  }, [updates, t.updates.today, t.updates.yesterday, t.updates.thisWeek, t.updates.earlier]);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.07] px-6 py-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Library Updates</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">{t.updates.title}</h1>
           <p className="font-mono-tech text-xs text-zinc-500">
-            {updates.length} new chapter{updates.length === 1 ? '' : 's'} discovered
+            {updates.length} {t.updates.chaptersDiscovered}
           </p>
         </div>
 
@@ -60,21 +69,21 @@ export function UpdatesView() {
               className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-xs text-zinc-300 transition hover:border-white/25 hover:text-white cursor-pointer"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              <span>Clear Feed</span>
+              <span>{t.updates.clearFeed}</span>
             </button>
           )}
 
           <button
             onClick={() => void checkLibraryUpdates()}
             disabled={checkingUpdates}
-            className="flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black transition hover:bg-zinc-200 disabled:opacity-50 cursor-pointer"
+            className="accent-bg flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition disabled:opacity-50 cursor-pointer"
           >
             {checkingUpdates ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <RefreshCw className="h-3.5 w-3.5" />
             )}
-            <span>{checkingUpdates ? 'Checking Library...' : 'Check Updates'}</span>
+            <span>{checkingUpdates ? t.updates.checking : t.updates.checkUpdates}</span>
           </button>
         </div>
       </div>

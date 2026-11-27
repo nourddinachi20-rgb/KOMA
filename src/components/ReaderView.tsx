@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { FitMode, ReaderMode } from '../types';
+import { useT } from '../utils/i18n';
 
 function ResilientReaderImage({
   src,
@@ -90,6 +91,7 @@ function ResilientReaderImage({
 }
 
 export function ReaderView() {
+  const t = useT();
   const {
     readerSession,
     closeReader,
@@ -608,7 +610,7 @@ export function ReaderView() {
                 }`}
               >
                 <List className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Chapters</span>
+                <span className="hidden sm:inline">{t.reader.chapters}</span>
               </button>
 
               {mode === 'webtoon' && (
@@ -617,12 +619,12 @@ export function ReaderView() {
                   title="Auto-Scroll Cruise (A / Space)"
                   className={`flex h-8 items-center gap-1 rounded-xl border px-2.5 text-[11px] transition cursor-pointer ${
                     autoScroll
-                      ? 'border-[#EAC278]/60 bg-[#EAC278] text-black font-semibold'
+                      ? 'accent-bg border-white/40 font-semibold'
                       : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:text-white'
                   }`}
                 >
                   {autoScroll ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                  <span>Cruise</span>
+                  <span>{t.reader.cruise}</span>
                 </button>
               )}
 
@@ -958,13 +960,13 @@ export function ReaderView() {
                   onClick={() => void updateSettings({ oledInk: !settings.oledInk })}
                   className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] transition cursor-pointer ${
                     settings.oledInk
-                      ? 'border-[#EAC278]/50 bg-[#EAC278] text-black font-semibold'
+                      ? 'accent-bg border-white/40 font-semibold'
                       : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:text-white'
                   }`}
                   title="OLED Black Ink Contrast Boost"
                 >
                   <Sparkles className="h-3 w-3" />
-                  <span>OLED Ink</span>
+                  <span>{t.reader.oledInk}</span>
                 </button>
 
                 {mode === 'webtoon' && (
@@ -979,7 +981,7 @@ export function ReaderView() {
                     }`}
                     title="Auto-advance to next chapter when scrolling to bottom"
                   >
-                    <span>Binge Next</span>
+                    <span>{t.reader.bingeNext}</span>
                   </button>
                 )}
 
@@ -987,12 +989,12 @@ export function ReaderView() {
                   onClick={() => setShowDisplayPanel((s) => !s)}
                   className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] transition cursor-pointer ${
                     showDisplayPanel
-                      ? 'border-white/30 bg-white text-black font-medium'
+                      ? 'accent-bg border-white/30 font-medium'
                       : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:text-white'
                   }`}
                 >
                   <Sliders className="h-3 w-3" />
-                  <span>Display</span>
+                  <span>{t.reader.display}</span>
                 </button>
               </div>
             </div>
@@ -1001,7 +1003,7 @@ export function ReaderView() {
               <div className="grid grid-cols-1 gap-3 border-t border-white/[0.08] pt-3 sm:grid-cols-2">
                 <label className="flex items-center gap-3 text-xs text-zinc-300">
                   <Sun className="h-3.5 w-3.5 text-zinc-400" />
-                  <span className="w-20">Brightness</span>
+                  <span className="w-20">{t.reader.brightness}</span>
                   <input
                     type="range"
                     min={40}
@@ -1017,7 +1019,7 @@ export function ReaderView() {
 
                 <label className="flex items-center gap-3 text-xs text-zinc-300">
                   <Contrast className="h-3.5 w-3.5 text-zinc-300" />
-                  <span className="w-20">Contrast</span>
+                  <span className="w-20">{t.reader.contrast}</span>
                   <input
                     type="range"
                     min={80}
@@ -1032,15 +1034,15 @@ export function ReaderView() {
                 </label>
 
                 <label className="flex items-center gap-3 text-xs text-zinc-300">
-                  <Eye className="h-3.5 w-3.5 text-amber-300" />
-                  <span className="w-20">Warm Tint</span>
+                  <Eye className="h-3.5 w-3.5 text-zinc-300" />
+                  <span className="w-20">{t.reader.warmth}</span>
                   <input
                     type="range"
                     min={0}
                     max={45}
                     value={settings.warmth}
                     onChange={(e) => void updateSettings({ warmth: Number(e.target.value) })}
-                    className="flex-1 accent-amber-300"
+                    className="flex-1 accent-white"
                   />
                   <span className="w-10 text-right font-mono-tech text-[11px]">
                     {settings.warmth}%
@@ -1049,8 +1051,8 @@ export function ReaderView() {
 
                 {mode === 'webtoon' && (
                   <label className="flex items-center gap-3 text-xs text-zinc-300">
-                    <Play className="h-3.5 w-3.5 text-[#EAC278]" />
-                    <span className="w-20">Cruise Speed</span>
+                    <Play className="h-3.5 w-3.5 accent-fg" />
+                    <span className="w-20">{t.reader.cruiseSpeed}</span>
                     <input
                       type="range"
                       min={1}
@@ -1060,7 +1062,7 @@ export function ReaderView() {
                       onChange={(e) =>
                         void updateSettings({ autoScrollSpeed: Number(e.target.value) })
                       }
-                      className="flex-1 accent-[#EAC278]"
+                      className="flex-1 accent-white"
                     />
                     <span className="w-10 text-right font-mono-tech text-[11px]">
                       {settings.autoScrollSpeed}x
@@ -1093,9 +1095,9 @@ export function ReaderView() {
             >
               <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3.5">
                 <div>
-                  <h3 className="text-sm font-semibold text-white">Chapters</h3>
+                  <h3 className="text-sm font-semibold text-white">{t.reader.chapters}</h3>
                   <p className="font-mono-tech text-[11px] text-zinc-500">
-                    {chapters.length} available
+                    {chapters.length}
                   </p>
                 </div>
                 <button
@@ -1112,7 +1114,7 @@ export function ReaderView() {
                   <input
                     value={chapterSearch}
                     onChange={(e) => setChapterSearch(e.target.value)}
-                    placeholder="Jump to chapter..."
+                    placeholder={t.reader.jumpChapter}
                     className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-1.5 pl-8 pr-3 text-xs text-white placeholder-zinc-500 focus:border-white/25 focus:outline-none"
                   />
                 </div>
@@ -1142,7 +1144,7 @@ export function ReaderView() {
                         }}
                         className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition cursor-pointer ${
                           isCurrent
-                            ? 'border-[#EAC278]/50 bg-[#EAC278]/15 text-white'
+                            ? 'accent-pill border'
                             : 'border-transparent bg-white/[0.02] text-zinc-300 hover:border-white/10 hover:bg-white/[0.06]'
                         }`}
                       >
@@ -1150,7 +1152,7 @@ export function ReaderView() {
                           <div
                             className={`truncate text-xs font-medium ${
                               isCurrent
-                                ? 'text-[#EAC278]'
+                                ? 'accent-fg'
                                 : isRead
                                   ? 'text-zinc-500'
                                   : 'text-zinc-200'
@@ -1166,8 +1168,8 @@ export function ReaderView() {
                           )}
                         </div>
                         {isCurrent ? (
-                          <span className="shrink-0 rounded-full bg-[#EAC278] px-2 py-0.5 font-mono-tech text-[9px] font-bold text-black">
-                            NOW
+                          <span className="accent-bg shrink-0 rounded-full px-2 py-0.5 font-mono-tech text-[9px] font-bold">
+                            {t.reader.now}
                           </span>
                         ) : isRead ? (
                           <Check className="h-3.5 w-3.5 shrink-0 text-emerald-400/70" />

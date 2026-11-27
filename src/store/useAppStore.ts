@@ -27,6 +27,7 @@ import {
   fetchSources,
   getProxiedImageUrl,
 } from '../utils/api';
+import { applyCustomizationToDocument } from '../utils/theme';
 
 export const HOUR_MS = 60 * 60 * 1000;
 
@@ -144,6 +145,9 @@ interface AppState {
 
 const DEFAULT_SETTINGS: AppSettings = {
   preferredLanguages: ['en', 'fr', 'ar'],
+  uiLanguage: 'en',
+  uiTheme: 'oled',
+  accentColor: '#FFFFFF',
   showNsfw: false,
   pinnedSources: [
     'MANGABALL_EN',
@@ -525,6 +529,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const needsTutorial = !settings.hasCompletedTutorial;
     const needsWhatsNew = !needsTutorial && settings.lastSeenVersion !== appVersion;
+    const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
+    applyCustomizationToDocument(mergedSettings);
 
     set({
       categories,
@@ -534,7 +540,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       trackerConfig,
       history,
       downloads,
-      settings,
+      settings: mergedSettings,
       engineStatus,
       appVersion,
       tutorialOpen: needsTutorial,
@@ -806,7 +812,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         api.getDownloads(),
         api.getSettings(),
       ]);
-    set({ categories, library, updates, stats, trackerConfig, history, downloads, settings });
+    const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
+    applyCustomizationToDocument(mergedSettings);
+    set({ categories, library, updates, stats, trackerConfig, history, downloads, settings: mergedSettings });
   },
 
   toggleLibraryManga: async (manga, categoryIds) => {
@@ -858,8 +866,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   updateSettings: async (patch) => {
-    const settings = await window.noctis.saveSettings(patch);
-    set({ settings });
+    const saved = await window.noctis.saveSettings(patch);
+    const merged = { ...DEFAULT_SETTINGS, ...saved };
+    applyCustomizationToDocument(merged);
+    set({ settings: merged });
   },
 
   queueDownload: async (manga, chapter) => {

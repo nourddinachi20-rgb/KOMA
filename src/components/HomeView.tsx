@@ -5,8 +5,6 @@ import {
   Bookmark,
   BookOpen,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Compass,
   FolderPlus,
   Layers,
@@ -17,6 +15,7 @@ import {
 import { HOUR_MS, useAppStore } from '../store/useAppStore';
 import { getProxiedImageUrl } from '../utils/api';
 import { extractAmbientColor } from '../utils/colorExtractor';
+import { useT } from '../utils/i18n';
 import { MangaCard } from './MangaCard';
 
 export function HomeView() {
@@ -38,10 +37,11 @@ export function HomeView() {
     importLocalArchives,
   } = useAppStore();
 
+  const t = useT();
   const [hourEpoch, setHourEpoch] = useState(() => Math.floor(Date.now() / HOUR_MS));
   const [heroIndex, setHeroIndex] = useState(0);
   const [heroPaused, setHeroPaused] = useState(false);
-  const [ambientRgb, setAmbientRgb] = useState('234, 194, 120');
+  const [ambientRgb, setAmbientRgb] = useState('255, 255, 255');
 
   useEffect(() => {
     const checkHour = setInterval(() => {
@@ -61,6 +61,14 @@ export function HomeView() {
     if (homeHeroItems.length > 0) return homeHeroItems;
     return library.slice(0, 8).map((l) => l.manga);
   }, [homeHeroItems, library]);
+
+  useEffect(() => {
+    if (heroPaused || fallbackHero.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setHeroIndex((i) => (i + 1) % fallbackHero.length);
+    }, 8500);
+    return () => window.clearInterval(timer);
+  }, [heroPaused, fallbackHero.length]);
 
   const activeIdx = heroIndex % Math.max(1, fallbackHero.length);
   const rawHero = fallbackHero[activeIdx] ?? null;
@@ -200,12 +208,12 @@ export function HomeView() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono-tech uppercase tracking-wider">
                             <span className="flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-white">
-                              <Sparkles className="h-2.5 w-2.5 text-[#EAC278]" />
-                              Spotlight
+                              <Sparkles className="h-2.5 w-2.5 accent-fg" />
+                              {t.home.spotlight}
                             </span>
                             {currentHero.rating > 0 && (
-                              <span className="flex items-center gap-1 rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-amber-300">
-                                <Star className="h-2.5 w-2.5 fill-amber-300" />
+                              <span className="flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-zinc-200">
+                                <Star className="h-2.5 w-2.5 fill-white text-white" />
                                 {(currentHero.rating * 10).toFixed(1)}
                               </span>
                             )}
@@ -215,7 +223,7 @@ export function HomeView() {
                           </h1>
                           {currentHero.authors.length > 0 && (
                             <p className="mt-1 truncate text-xs text-zinc-300/90">
-                              by {currentHero.authors.slice(0, 2).join(', ')}
+                              {t.home.by} {currentHero.authors.slice(0, 2).join(', ')}
                             </p>
                           )}
                         </div>
@@ -223,8 +231,8 @@ export function HomeView() {
                     )}
                     <div className="hidden lg:flex flex-wrap items-center gap-2 text-[11px] font-mono-tech uppercase tracking-[0.16em]">
                       <span className="flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-white backdrop-blur-md">
-                        <Sparkles className="h-3 w-3 text-[#EAC278]" />
-                        Spotlight
+                        <Sparkles className="h-3 w-3 accent-fg" />
+                        {t.home.spotlight}
                       </span>
                       <span className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-zinc-300">
                         {currentHero.source.replace(/_/g, ' ')}
@@ -235,8 +243,8 @@ export function HomeView() {
                         </span>
                       )}
                       {currentHero.rating > 0 && (
-                        <span className="flex items-center gap-1 rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-1 text-amber-300">
-                          <Star className="h-3 w-3 fill-amber-300" />
+                        <span className="flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-1 text-zinc-200">
+                          <Star className="h-3 w-3 fill-white text-white" />
                           {(currentHero.rating * 10).toFixed(1)}
                         </span>
                       )}
@@ -283,10 +291,10 @@ export function HomeView() {
                     <div className="mt-6 flex flex-wrap items-center gap-3">
                       <button
                         onClick={handleQuickReadHero}
-                        className="flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black shadow-[0_0_32px_rgba(255,255,255,0.3)] transition hover:scale-[1.03] hover:bg-zinc-100 cursor-pointer"
+                        className="accent-bg flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold shadow-[0_0_28px_rgba(var(--koma-accent-rgb),0.22)] transition hover:scale-[1.03] cursor-pointer"
                       >
-                        <Play className="h-4 w-4 fill-black" />
-                        <span>Read Now</span>
+                        <Play className="h-4 w-4 fill-current" />
+                        <span>{t.home.readNow}</span>
                       </button>
 
                       <button
@@ -294,17 +302,17 @@ export function HomeView() {
                         className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] px-5 py-2.5 text-sm font-medium text-white backdrop-blur-md transition hover:border-white/30 hover:bg-white/[0.14] cursor-pointer"
                       >
                         <BookOpen className="h-4 w-4" />
-                        <span>Details & Chapters</span>
+                        <span>{t.home.details}</span>
                       </button>
 
                       <button
                         onClick={() => toggleLibraryManga(currentHero)}
                         className={`flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition cursor-pointer ${
                           heroInLibrary
-                            ? 'border-white/40 bg-white text-black'
+                            ? 'accent-bg border-white/40'
                             : 'border-white/15 bg-white/[0.07] text-white hover:border-white/30 hover:bg-white/[0.14]'
                         }`}
-                        title={heroInLibrary ? 'In Library' : 'Add to Library'}
+                        title={heroInLibrary ? t.home.inLibrary : t.home.addToLibrary}
                       >
                         {heroInLibrary ? (
                           <Check className="h-4 w-4" />
@@ -385,101 +393,27 @@ export function HomeView() {
                 </motion.div>
               </div>
             </div>
-
-            {fallbackHero.length > 1 && (
-              <div className="relative z-20 border-t border-white/[0.08] bg-black/75">
-                {/* Synchronized Hero Advance Bar: switches to next spotlight once filled */}
-                <div className="h-[3px] w-full overflow-hidden bg-white/[0.06]">
-                  <div
-                    key={`advance-${activeIdx}-${fallbackHero.length}`}
-                    onAnimationEnd={() => setHeroIndex((i) => (i + 1) % fallbackHero.length)}
-                    style={{
-                      animation: 'hero-advance 8500ms linear forwards',
-                      animationPlayState: heroPaused ? 'paused' : 'running',
-                    }}
-                    className="h-full w-full origin-left bg-gradient-to-r from-[#EAC278] via-white to-[#EAC278] shadow-[0_0_10px_rgba(234,194,120,0.6)]"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between gap-4 px-6 py-3">
-                  <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar">
-                  {fallbackHero.map((item, idx) => {
-                    const active = idx === activeIdx;
-                    const thumb = getProxiedImageUrl(
-                      engineStatus.url,
-                      item.source,
-                      item.coverUrl || item.largeCoverUrl,
-                    );
-                    return (
-                      <button
-                        key={`${item.source}-${item.id}`}
-                        onClick={() => setHeroIndex(idx)}
-                        className={`group flex shrink-0 items-center gap-2.5 rounded-xl border px-2.5 py-1.5 text-left transition cursor-pointer ${
-                          active
-                            ? 'border-white/30 bg-white/15 text-white'
-                            : 'border-white/[0.06] bg-white/[0.03] text-zinc-400 hover:border-white/15 hover:text-zinc-200'
-                        }`}
-                      >
-                        <div className="h-8 w-6 shrink-0 overflow-hidden rounded bg-zinc-900">
-                          {thumb && (
-                            <img
-                              src={thumb}
-                              alt=""
-                              decoding="async"
-                              className="h-full w-full object-cover"
-                            />
-                          )}
-                        </div>
-                        <span className="max-w-[125px] truncate text-xs font-medium">
-                          {item.title}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <button
-                    onClick={() =>
-                      setHeroIndex((activeIdx - 1 + fallbackHero.length) % fallbackHero.length)
-                    }
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/[0.05] text-zinc-300 transition hover:border-white/30 hover:text-white cursor-pointer"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setHeroIndex((activeIdx + 1) % fallbackHero.length)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/[0.05] text-zinc-300 transition hover:border-white/30 hover:text-white cursor-pointer"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-                </div>
-              </div>
-            )}
           </div>
         ) : (
           <div className="flex min-h-[340px] flex-col items-center justify-center rounded-3xl border border-white/[0.08] bg-white/[0.02] p-10 text-center">
-            <h1 className="font-editorial text-4xl text-white">Your KOMA Sanctuary Awaits</h1>
+            <h1 className="font-editorial text-4xl text-white">{t.home.loadingTitle}</h1>
             <p className="mt-2 max-w-md text-sm text-zinc-400">
-              {engineStatus.ready
-                ? 'Loading live feeds from Manga Ball, MangaDex, and your verified sources...'
-                : 'Connecting to your bundled manga engine...'}
+              {engineStatus.ready ? t.home.loadingSources : t.home.connectingEngine}
             </p>
             <div className="mt-6 flex items-center gap-3">
               <button
                 onClick={() => setActiveView('explore')}
-                className="flex items-center gap-2 rounded-full bg-white px-5 py-2 text-xs font-semibold text-black cursor-pointer"
+                className="accent-bg flex items-center gap-2 rounded-full px-5 py-2 text-xs font-semibold cursor-pointer"
               >
                 <Compass className="h-3.5 w-3.5" />
-                Browse Sources
+                {t.home.browseSources}
               </button>
               <button
                 onClick={importLocalArchives}
                 className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.05] px-5 py-2 text-xs font-medium text-white cursor-pointer"
               >
                 <FolderPlus className="h-3.5 w-3.5" />
-                Import CBZ
+                {t.home.importCbz}
               </button>
             </div>
           </div>
@@ -489,7 +423,9 @@ export function HomeView() {
         {history.length > 0 && (
           <section>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold tracking-tight text-white">Continue Reading</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-white">
+                {t.home.continueReading}
+              </h2>
             </div>
             <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
               {history.slice(0, 16).map((h) => {
@@ -518,7 +454,7 @@ export function HomeView() {
                 onClick={() => setExploreSource(row.source)}
                 className="group flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-400 transition hover:border-white/25 hover:text-white cursor-pointer"
               >
-                <span>Explore</span>
+                <span>{t.home.explore}</span>
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </button>
             </div>
@@ -540,7 +476,7 @@ export function HomeView() {
               </div>
             ) : (
               <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-5 py-6 text-xs text-zinc-500">
-                {row.subtitle} did not respond right now — try switching sources in Explore or Sources.
+                {row.subtitle} {t.home.sourceNoResponse}
               </div>
             )}
           </section>

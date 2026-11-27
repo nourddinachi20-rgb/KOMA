@@ -23,23 +23,23 @@ const SHOWCASE_SCREENS: Record<
 > = {
   home: {
     src: './screenshots/desktop-home.png',
-    caption: 'Trending Hero Spotlight with advance bar, hourly feeds & Continue Reading',
-    tag: 'HOME SPOTLIGHT',
+    caption: 'Home spotlight and trending feeds',
+    tag: 'HOME',
   },
   details: {
     src: './screenshots/desktop-details.png',
-    caption: 'Series Page with AniList Related & Recommended cards + 30-chapter pagination',
-    tag: 'SERIES & CHAPTERS',
+    caption: 'Chapters list, AniList info and related titles',
+    tag: 'DETAILS',
   },
   reader: {
     src: './screenshots/desktop-reader.png',
-    caption: 'Distraction-free OLED Reader with Webtoon/RTL/Spread modes, Zoom & Cruise',
-    tag: 'OLED PRO READER',
+    caption: 'Reader view with chapter drawer, zoom and auto-scroll',
+    tag: 'READER',
   },
   explore: {
     src: './screenshots/tablet-explore.png',
-    caption: '100+ verified EN/FR/AR sources including MangaBall, MangaDex, Asura & WeebCentral',
-    tag: 'EXPLORE CATALOG',
+    caption: 'Browse EN, FR and AR manga sources',
+    tag: 'EXPLORE',
   },
 };
 
@@ -53,13 +53,13 @@ async function renderQr(url: string): Promise<void> {
   try {
     const svg = await QRCode.toString(url, {
       type: 'svg',
-      width: 118,
+      width: 108,
       margin: 1,
       color: { dark: '#FFFFFF', light: '#0A0A0D' },
     });
     container.innerHTML = svg;
   } catch {
-    container.textContent = 'QR ready';
+    container.textContent = 'QR';
   }
 }
 
@@ -95,7 +95,7 @@ function initShowcaseTabs(): void {
 
 function renderReleaseNotes(markdown: string, version: string): void {
   const heading = document.getElementById('whats-new-title');
-  if (heading) heading.textContent = `What's New in ver : ${version}`;
+  if (heading) heading.textContent = `Changelog · v${version}`;
 
   const container = document.getElementById('release-notes-grid');
   if (!container || !markdown.trim()) return;
@@ -114,7 +114,7 @@ function renderReleaseNotes(markdown: string, version: string): void {
     const b = line.match(/^[-*•]\s+(.+)$/);
     if (b) {
       if (!cur) {
-        cur = { title: 'Highlights', items: [] };
+        cur = { title: 'Changes', items: [] };
         sections.push(cur);
       }
       cur.items.push(b[1].replace(/\*\*/g, '').trim());
@@ -125,8 +125,8 @@ function renderReleaseNotes(markdown: string, version: string): void {
   container.innerHTML = sections
     .map(
       (sec) => `
-      <div class="card-surface p-6">
-        <div class="badge-mono mb-4">${sec.title.replace(/</g, '&lt;')}</div>
+      <div class="card-surface">
+        <div class="mono notes-title">${sec.title.replace(/</g, '&lt;')}</div>
         <ul class="notes-list">
           ${sec.items
             .map(
@@ -149,14 +149,11 @@ async function init(): Promise<void> {
   const platform = detectPlatform();
   const winCard = document.getElementById('card-windows');
   const apkCard = document.getElementById('card-android');
-  const osBadge = document.getElementById('detected-os-pill');
 
-  if (platform === 'android' && apkCard && osBadge) {
-    apkCard.classList.add('card-recommended');
-    osBadge.textContent = 'Detected Android Device · APK Ready';
-  } else if (platform === 'windows' && winCard && osBadge) {
-    winCard.classList.add('card-recommended');
-    osBadge.textContent = 'Detected Windows PC · Portable EXE Ready';
+  if (platform === 'android' && apkCard) {
+    apkCard.classList.add('card-highlighted');
+  } else if (platform === 'windows' && winCard) {
+    winCard.classList.add('card-highlighted');
   }
 
   await renderQr(DEFAULT_APK_URL);
@@ -198,7 +195,7 @@ async function init(): Promise<void> {
       renderReleaseNotes(rel.body, ver);
     }
   } catch {
-    // Static defaults stay active
+    // Keep static defaults
   }
 }
 

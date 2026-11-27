@@ -206,9 +206,14 @@ export interface DownloadedChapter {
 
 export type ReaderMode = 'webtoon' | 'rtl' | 'ltr' | 'double';
 export type FitMode = 'width' | 'height' | 'original';
+export type UiTheme = 'oled' | 'dark' | 'paper';
+export type UiLanguage = 'en' | 'fr' | 'ar';
 
 export interface AppSettings {
   preferredLanguages: string[];
+  uiLanguage: UiLanguage;
+  uiTheme: UiTheme;
+  accentColor: string;
   showNsfw: boolean;
   pinnedSources: string[];
   defaultReaderMode: ReaderMode;

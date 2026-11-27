@@ -1089,6 +1089,9 @@ class KomaNativePlugin : Plugin() {
         private val DEFAULT_SETTINGS = """
             {
               "preferredLanguages":["en","fr","ar"],
+              "uiLanguage":"en",
+              "uiTheme":"oled",
+              "accentColor":"#FFFFFF",
               "showNsfw":false,
               "pinnedSources":["MANGABALL_EN","MANGADEX","WEEBCENTRAL","ASURASCANS","MANGAPILL","MANGAREAD","LELMANGA","TEAMXNOVEL"],
               "defaultReaderMode":"webtoon",

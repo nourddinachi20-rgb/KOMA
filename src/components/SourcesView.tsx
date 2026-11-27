@@ -3,6 +3,7 @@ import { ArrowUpRight, CheckCircle2, Loader2, Pin, RefreshCw, Search, Shield } f
 import { useAppStore } from '../store/useAppStore';
 import type { SourceInfo } from '../types';
 import { fetchSources } from '../utils/api';
+import { useT } from '../utils/i18n';
 
 const LANG_TABS = [
   { id: 'all', label: 'All Verified' },
@@ -13,6 +14,7 @@ const LANG_TABS = [
 ] as const;
 
 export function SourcesView() {
+  const t = useT();
   const {
     sources,
     engineStatus,
@@ -101,7 +103,7 @@ export function SourcesView() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search sources..."
+              placeholder={t.sources.searchPlaceholder}
               className="w-52 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-9 pr-4 text-xs text-white placeholder-zinc-500 focus:border-white/25 focus:outline-none"
             />
           </div>
@@ -110,13 +112,13 @@ export function SourcesView() {
             onClick={() => void toggleShowAllCf()}
             className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
               showAllCf
-                ? 'border-[#EAC278]/50 bg-[#EAC278] text-black'
+                ? 'accent-bg border-white/40'
                 : 'border-white/15 bg-white/[0.06] text-zinc-300 hover:border-white/30 hover:text-white'
             }`}
             title="Show CF-gated & unverified EN/FR/AR extensions to unlock them"
           >
             <Shield className="h-3.5 w-3.5" />
-            <span>{showAllCf ? 'Showing All' : 'CF Unlock Mode'}</span>
+            <span>{showAllCf ? t.sources.showingAll : t.sources.cfMode}</span>
           </button>
 
           <button
@@ -129,7 +131,7 @@ export function SourcesView() {
             ) : (
               <RefreshCw className="h-3.5 w-3.5" />
             )}
-            <span>{verifyingSources ? 'Scanning Live...' : 'Re-Verify Live'}</span>
+            <span>{verifyingSources ? t.sources.scanning : t.sources.reverify}</span>
           </button>
         </div>
       </div>
@@ -188,7 +190,7 @@ export function SourcesView() {
                         }
                       }}
                       title="Solve Cloudflare / Refresh Cookies"
-                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-400 transition hover:border-white/25 hover:text-[#EAC278] cursor-pointer"
+                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-400 transition hover:border-white/25 hover:text-white cursor-pointer"
                     >
                       {unlocking === src.name ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />

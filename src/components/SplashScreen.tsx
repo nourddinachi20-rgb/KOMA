@@ -2,19 +2,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
 import { getProxiedImageUrl } from '../utils/api';
+import { useT } from '../utils/i18n';
 import { KomaLogo } from './KomaLogo';
 
-const STAGE_LABELS = {
-  hydrating: { label: 'Initializing Sanctuary', progress: 22 },
-  engine: { label: 'Warming Source Engine', progress: 55 },
-  warming: { label: 'Syncing Trending Catalogs', progress: 84 },
-  ready: { label: 'Entering Sanctuary', progress: 100 },
+const STAGE_PROGRESS = {
+  hydrating: 22,
+  engine: 55,
+  warming: 84,
+  ready: 100,
 } as const;
 
 const MIN_INTRO_MS = 3400;
 
 export function SplashScreen() {
   const { bootStage, engineStatus, sources, homeHeroItems, homeRows, library } = useAppStore();
+  const t = useT();
   const [ssdCovers, setSsdCovers] = useState<string[]>([]);
   const [minIntroDone, setMinIntroDone] = useState(false);
 
@@ -67,7 +69,8 @@ export function SplashScreen() {
 
   const engineDone = bootStage === 'ready';
   const visible = !(engineDone && minIntroDone);
-  const info = STAGE_LABELS[bootStage];
+  const progress = STAGE_PROGRESS[bootStage];
+  const stageLabel = t.splash[bootStage];
 
   return (
     <AnimatePresence>
@@ -110,7 +113,7 @@ export function SplashScreen() {
                             className="h-full w-full object-cover opacity-35"
                           />
                         ) : (
-                          <div className="h-full w-full bg-gradient-to-br from-white/[0.05] via-transparent to-[#EAC278]/[0.05]" />
+                          <div className="h-full w-full bg-gradient-to-br from-white/[0.06] via-transparent to-white/[0.02]" />
                         )}
                       </div>
                     ))}
@@ -120,7 +123,7 @@ export function SplashScreen() {
             })}
           </div>
 
-          {/* Single static composited OLED vignette + warm gold halo */}
+          {/* Monochrome OLED vignette + subtle accent halo */}
           <div
             className="pointer-events-none absolute inset-0"
             style={{
@@ -132,7 +135,7 @@ export function SplashScreen() {
             className="pointer-events-none absolute h-[460px] w-[460px] rounded-full"
             style={{
               background:
-                'radial-gradient(circle, rgba(234,194,120,0.22) 0%, rgba(234,194,120,0.05) 45%, transparent 72%)',
+                'radial-gradient(circle, rgba(var(--koma-accent-rgb), 0.14) 0%, rgba(var(--koma-accent-rgb), 0.03) 45%, transparent 72%)',
             }}
           />
 
@@ -146,9 +149,9 @@ export function SplashScreen() {
             >
               <motion.div
                 initial={{ opacity: 0 }}
-                animate={{ opacity: [0, 0.75, 0.25] }}
+                animate={{ opacity: [0, 0.7, 0.25] }}
                 transition={{ duration: 1.8, times: [0, 0.45, 1], ease: 'easeOut' }}
-                className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-[#EAC278]/55"
+                className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-white/40"
               />
               <KomaLogo className="h-16 w-16" />
             </motion.div>
@@ -166,10 +169,10 @@ export function SplashScreen() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.48, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-2.5 flex items-center gap-2 rounded-full border border-[#EAC278]/30 bg-[#EAC278]/[0.08] px-3.5 py-1"
+              className="accent-pill mt-2.5 flex items-center gap-2 rounded-full border px-3.5 py-1"
             >
-              <span className="font-mono-tech text-[10px] font-semibold uppercase tracking-[0.26em] text-[#EAC278]">
-                Made by VirtualDrum
+              <span className="font-mono-tech text-[10px] font-semibold uppercase tracking-[0.26em]">
+                {t.splash.madeBy}
               </span>
             </motion.div>
 
@@ -177,7 +180,7 @@ export function SplashScreen() {
               initial={{ scaleX: 0, opacity: 0 }}
               animate={{ scaleX: 1, opacity: 1 }}
               transition={{ duration: 0.65, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-4 h-[1px] w-28 origin-center bg-gradient-to-r from-transparent via-[#EAC278]/75 to-transparent"
+              className="mt-4 h-[1px] w-28 origin-center bg-gradient-to-r from-transparent via-white/55 to-transparent"
             />
 
             <motion.div
@@ -188,16 +191,19 @@ export function SplashScreen() {
             >
               <div className="h-[2.5px] w-60 overflow-hidden rounded-full bg-white/10">
                 <div
-                  style={{ width: `${info.progress}%` }}
-                  className="h-full bg-gradient-to-r from-white/80 via-[#EAC278] to-white transition-[width] duration-500 ease-out"
+                  style={{ width: `${progress}%`, backgroundColor: 'var(--koma-accent, #FFFFFF)' }}
+                  className="h-full transition-[width] duration-500 ease-out"
                 />
               </div>
 
               <div className="mt-3.5 flex items-center gap-2 font-mono-tech text-[11px] uppercase tracking-[0.18em] text-zinc-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#EAC278] animate-pulse" />
-                <span>{info.label}</span>
+                <span
+                  className="h-1.5 w-1.5 rounded-full animate-pulse"
+                  style={{ backgroundColor: 'var(--koma-accent, #FFFFFF)' }}
+                />
+                <span>{stageLabel}</span>
                 {engineStatus.ready && sources.length > 0 && (
-                  <span className="text-zinc-500">· {sources.length} sources</span>
+                  <span className="text-zinc-500">· {sources.length}</span>
                 )}
               </div>
             </motion.div>

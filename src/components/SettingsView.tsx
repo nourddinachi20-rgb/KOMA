@@ -6,9 +6,11 @@ import {
   CheckCircle2,
   DownloadCloud,
   ExternalLink,
+  Globe,
   HardDrive,
   Link2,
   Loader2,
+  Palette,
   RefreshCw,
   ShieldAlert,
   Sparkles,
@@ -17,8 +19,12 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import type { UiLanguage, UiTheme } from '../types';
+import { useT } from '../utils/i18n';
+import { ACCENT_PRESETS } from '../utils/theme';
 
 export function SettingsView() {
+  const t = useT();
   const {
     settings,
     updateSettings,
@@ -112,10 +118,8 @@ export function SettingsView() {
     <div className="h-full w-full overflow-y-auto p-6 sm:p-10">
       <div className="mx-auto max-w-3xl space-y-7 pb-12">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Settings</h1>
-          <p className="mt-1 text-xs text-zinc-500">
-            Customize your OLED reading sanctuary, trackers, Discord presence, and backups.
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-white">{t.settings.title}</h1>
+          <p className="mt-1 text-xs text-zinc-500">{t.settings.subtitle}</p>
         </div>
 
         {statusMsg && (
@@ -124,12 +128,150 @@ export function SettingsView() {
           </div>
         )}
 
+        {/* Language / Langue / اللغة */}
+        <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6 space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+              <Globe className="h-4 w-4 accent-fg" />
+              <span>{t.settings.languageTitle}</span>
+            </div>
+            <span className="font-mono-tech text-[11px] text-zinc-500">
+              {t.settings.moreLanguagesNote}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="text-sm text-zinc-200">{t.settings.languageLabel}</div>
+              <div className="text-xs text-zinc-500">{t.settings.languageDesc}</div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { id: 'en', label: 'English' },
+                  { id: 'fr', label: 'Français' },
+                  { id: 'ar', label: 'العربية' },
+                ] as Array<{ id: UiLanguage; label: string }>
+              ).map((opt) => {
+                const active = (settings.uiLanguage ?? 'en') === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => void updateSettings({ uiLanguage: opt.id })}
+                    className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                      active
+                        ? 'accent-bg border-white/40'
+                        : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:border-white/25 hover:text-white'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Appearance & Theme Customization */}
+        <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6 space-y-5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+              <Palette className="h-4 w-4 accent-fg" />
+              <span>{t.settings.appearanceTitle}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                void updateSettings({ uiTheme: 'oled', accentColor: '#FFFFFF' })
+              }
+              className="rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-[11px] text-zinc-300 hover:border-white/30 hover:text-white cursor-pointer"
+            >
+              {t.settings.resetBw}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="text-sm text-zinc-200">{t.settings.themeLabel}</div>
+              <div className="text-xs text-zinc-500">{t.settings.themeDesc}</div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { id: 'oled', label: t.settings.themeOled },
+                  { id: 'dark', label: t.settings.themeDark },
+                  { id: 'paper', label: t.settings.themePaper },
+                ] as Array<{ id: UiTheme; label: string }>
+              ).map((themeOpt) => {
+                const active = (settings.uiTheme ?? 'oled') === themeOpt.id;
+                return (
+                  <button
+                    key={themeOpt.id}
+                    type="button"
+                    onClick={() => void updateSettings({ uiTheme: themeOpt.id })}
+                    className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                      active
+                        ? 'accent-bg border-white/40'
+                        : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:border-white/25 hover:text-white'
+                    }`}
+                  >
+                    {themeOpt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.06] pt-4">
+            <div>
+              <div className="text-sm text-zinc-200">{t.settings.accentLabel}</div>
+              <div className="text-xs text-zinc-500">{t.settings.accentDesc}</div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {ACCENT_PRESETS.map((preset) => {
+                const active =
+                  (settings.accentColor ?? '#FFFFFF').toUpperCase() === preset.hex;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    title={preset.label}
+                    onClick={() => void updateSettings({ accentColor: preset.hex })}
+                    className={`h-7 w-7 rounded-full border transition cursor-pointer ${
+                      active ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-black' : 'border-white/25 hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: preset.hex }}
+                  />
+                );
+              })}
+
+              <label
+                title={t.settings.customColor}
+                className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-1 text-[11px] text-zinc-300 hover:text-white cursor-pointer"
+              >
+                <input
+                  type="color"
+                  value={settings.accentColor || '#FFFFFF'}
+                  onChange={(e) =>
+                    void updateSettings({ accentColor: e.target.value.toUpperCase() })
+                  }
+                  className="h-4 w-4 cursor-pointer border-0 bg-transparent p-0"
+                />
+                <span>{t.settings.customColor}</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
         {/* AniList Two-Way Sync */}
         <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold text-white">
-              <Link2 className="h-4 w-4 text-[#EAC278]" />
-              <span>AniList Two-Way Tracker Sync</span>
+              <Link2 className="h-4 w-4 accent-fg" />
+              <span>{t.settings.anilistTitle}</span>
             </div>
             <a
               href="https://anilist.co/settings/developer"
@@ -231,15 +373,13 @@ export function SettingsView() {
         <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6 space-y-5">
           <div className="flex items-center gap-2 text-sm font-semibold text-white">
             <Sparkles className="h-4 w-4 text-zinc-300" />
-            <span>OLED Visuals, Reader & Integrations</span>
+            <span>{t.settings.readerVisualsTitle}</span>
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-zinc-200">Dynamic Cover Ambient Glow</div>
-              <div className="text-xs text-zinc-500">
-                Extracts cover palette for subtle atmospheric lighting on Home & Series Pages
-              </div>
+              <div className="text-sm text-zinc-200">{t.settings.ambientGlow}</div>
+              <div className="text-xs text-zinc-500">{t.settings.ambientGlowDesc}</div>
             </div>
             <input
               type="checkbox"
@@ -251,10 +391,8 @@ export function SettingsView() {
 
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-zinc-200">OLED True-Black Ink Preset</div>
-              <div className="text-xs text-zinc-500">
-                Boosts black contrast so dark manga panels blend cleanly into #000000
-              </div>
+              <div className="text-sm text-zinc-200">{t.settings.oledInk}</div>
+              <div className="text-xs text-zinc-500">{t.settings.oledInkDesc}</div>
             </div>
             <input
               type="checkbox"
@@ -266,10 +404,8 @@ export function SettingsView() {
 
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-zinc-200">Auto-Check Library Updates</div>
-              <div className="text-xs text-zinc-500">
-                Quietly checks saved series for newly released chapters on launch
-              </div>
+              <div className="text-sm text-zinc-200">{t.settings.autoCheckUpdates}</div>
+              <div className="text-xs text-zinc-500">{t.settings.autoCheckUpdatesDesc}</div>
             </div>
             <input
               type="checkbox"
@@ -284,10 +420,8 @@ export function SettingsView() {
               <div className="flex items-center gap-2">
                 <Activity className="h-4 w-4 text-indigo-300" />
                 <div>
-                  <div className="text-sm text-zinc-200">Discord Rich Presence</div>
-                  <div className="text-xs text-zinc-500">
-                    Show currently reading series & chapter on your Discord profile
-                  </div>
+                  <div className="text-sm text-zinc-200">{t.settings.discordRpc}</div>
+                  <div className="text-xs text-zinc-500">{t.settings.discordRpcDesc}</div>
                 </div>
               </div>
               <input
@@ -318,10 +452,8 @@ export function SettingsView() {
 
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-zinc-200">Preload Pages Ahead</div>
-              <div className="text-xs text-zinc-500">
-                Upcoming pages pre-decoded onto GPU while reading
-              </div>
+              <div className="text-sm text-zinc-200">{t.settings.preloadPages}</div>
+              <div className="text-xs text-zinc-500">{t.settings.preloadPagesDesc}</div>
             </div>
             <select
               value={settings.preloadCount}
@@ -341,15 +473,13 @@ export function SettingsView() {
         <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6 space-y-5">
           <div className="flex items-center gap-2 text-sm font-semibold text-white">
             <ShieldAlert className="h-4 w-4 text-zinc-300" />
-            <span>Sources & Content</span>
+            <span>{t.settings.sourcesContentTitle}</span>
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-zinc-200">Show 18+ / NSFW Sources</div>
-              <div className="text-xs text-zinc-500">
-                Include adult-marked extensions in Explore and Sources directory
-              </div>
+              <div className="text-sm text-zinc-200">{t.settings.showNsfw}</div>
+              <div className="text-xs text-zinc-500">{t.settings.showNsfwDesc}</div>
             </div>
             <input
               type="checkbox"
@@ -361,10 +491,8 @@ export function SettingsView() {
 
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-zinc-200">Preferred Source Languages</div>
-              <div className="text-xs text-zinc-500">
-                Comma-separated ISO codes (en, fr, ar)
-              </div>
+              <div className="text-sm text-zinc-200">{t.settings.sourceLangs}</div>
+              <div className="text-xs text-zinc-500">{t.settings.sourceLangsDesc}</div>
             </div>
             <input
               value={settings.preferredLanguages.join(', ')}
@@ -383,7 +511,7 @@ export function SettingsView() {
 
         {/* Backup & Engine */}
         <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6 space-y-5">
-          <div className="text-sm font-semibold text-white">Backup & Engine Diagnostics</div>
+          <div className="text-sm font-semibold text-white">{t.settings.backupEngineTitle}</div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -391,7 +519,7 @@ export function SettingsView() {
               className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-xs font-medium text-white hover:bg-white/10 cursor-pointer"
             >
               <DownloadCloud className="h-3.5 w-3.5" />
-              <span>Export Backup (.json)</span>
+              <span>{t.settings.exportBackup}</span>
             </button>
 
             <button
@@ -399,7 +527,7 @@ export function SettingsView() {
               className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-xs font-medium text-white hover:bg-white/10 cursor-pointer"
             >
               <UploadCloud className="h-3.5 w-3.5" />
-              <span>Restore Backup</span>
+              <span>{t.settings.restoreBackup}</span>
             </button>
 
             <button
@@ -407,7 +535,7 @@ export function SettingsView() {
               className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-xs font-medium text-white hover:bg-white/10 cursor-pointer"
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              <span>Restart Parser Engine</span>
+              <span>{t.settings.restartEngine}</span>
             </button>
 
             <button
@@ -417,7 +545,7 @@ export function SettingsView() {
             >
               <Trash2 className="h-3.5 w-3.5 text-zinc-300" />
               <span>
-                Clear Image Cache
+                {t.settings.clearCache}
                 {cacheStats
                   ? ` (${(cacheStats.bytes / (1024 * 1024)).toFixed(1)} MB · ${cacheStats.files})`
                   : ''}
@@ -446,20 +574,18 @@ export function SettingsView() {
         <section className="rounded-3xl border border-white/[0.08] bg-white/[0.02] p-6 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-white">
-              <ArrowUpCircle className="h-4 w-4 text-[#EAC278]" />
-              <span>App Updates & Version</span>
+              <ArrowUpCircle className="h-4 w-4 accent-fg" />
+              <span>{t.settings.updatesVersionTitle}</span>
             </div>
-            <span className="rounded-full border border-[#EAC278]/30 bg-[#EAC278]/10 px-3 py-1 font-mono-tech text-xs text-[#EAC278]">
-              Installed: v{appVersion}
+            <span className="accent-pill rounded-full border px-3 py-1 font-mono-tech text-xs">
+              {t.settings.installed}: v{appVersion}
             </span>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-sm text-zinc-200">GitHub Releases Repository</div>
-              <div className="text-xs text-zinc-500">
-                Checks GitHub Releases for new Windows (.exe) & Android (.apk) builds
-              </div>
+              <div className="text-sm text-zinc-200">{t.settings.githubRepo}</div>
+              <div className="text-xs text-zinc-500">{t.settings.githubRepoDesc}</div>
             </div>
             <input
               value={settings.githubRepo ?? 'nourddinachi20-rgb/KOMA'}
@@ -473,25 +599,27 @@ export function SettingsView() {
             <button
               onClick={() => void checkForAppUpdate(false)}
               disabled={checkingAppUpdate}
-              className="flex items-center gap-2 rounded-full bg-white px-5 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200 disabled:opacity-50 cursor-pointer"
+              className="accent-bg flex items-center gap-2 rounded-full px-5 py-2 text-xs font-semibold transition disabled:opacity-50 cursor-pointer"
             >
               {checkingAppUpdate ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <RefreshCw className="h-3.5 w-3.5" />
               )}
-              <span>{checkingAppUpdate ? 'Checking...' : 'Check for Updates'}</span>
+              <span>
+                {checkingAppUpdate ? t.settings.checkingUpdates : t.settings.checkForUpdates}
+              </span>
             </button>
 
             {appUpdateInfo?.hasUpdate && appUpdateInfo.downloadUrl && (
               <button
                 onClick={() => void installAppUpdate()}
                 disabled={Boolean(appUpdateProgress && appUpdateProgress.status !== 'error')}
-                className="flex items-center gap-2 rounded-full bg-[#EAC278] px-5 py-2 text-xs font-semibold text-black shadow-[0_0_24px_rgba(234,194,120,0.3)] transition hover:brightness-105 cursor-pointer"
+                className="accent-bg flex items-center gap-2 rounded-full px-5 py-2 text-xs font-semibold shadow-[0_0_24px_rgba(var(--koma-accent-rgb),0.25)] transition hover:brightness-105 cursor-pointer"
               >
                 <DownloadCloud className="h-3.5 w-3.5" />
                 <span>
-                  Update to v{appUpdateInfo.latestVersion} &amp; Restart
+                  {t.settings.updateAndRestart} (v{appUpdateInfo.latestVersion})
                 </span>
               </button>
             )}
@@ -500,8 +628,10 @@ export function SettingsView() {
               onClick={() => setShowWhatsNew(true)}
               className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-xs font-medium text-white hover:bg-white/10 cursor-pointer"
             >
-              <Sparkles className="h-3.5 w-3.5 text-[#EAC278]" />
-              <span>What&apos;s New (v{appVersion})</span>
+              <Sparkles className="h-3.5 w-3.5 accent-fg" />
+              <span>
+                {t.settings.whatsNew} (v{appVersion})
+              </span>
             </button>
 
             <button
@@ -509,12 +639,12 @@ export function SettingsView() {
               className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-xs font-medium text-white hover:bg-white/10 cursor-pointer"
             >
               <BookOpen className="h-3.5 w-3.5 text-zinc-300" />
-              <span>Interactive Tutorial</span>
+              <span>{t.settings.interactiveTutorial}</span>
             </button>
           </div>
 
           {appUpdateProgress && (
-            <div className="space-y-2 rounded-2xl border border-[#EAC278]/30 bg-[#EAC278]/[0.06] p-4">
+            <div className="accent-pill space-y-2 rounded-2xl border p-4">
               <div className="flex items-center justify-between text-xs text-white">
                 <span>
                   {appUpdateProgress.status === 'installing'
@@ -527,8 +657,11 @@ export function SettingsView() {
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                 <div
-                  style={{ width: `${appUpdateProgress.percent}%` }}
-                  className="h-full bg-[#EAC278] transition-all"
+                  style={{
+                    width: `${appUpdateProgress.percent}%`,
+                    backgroundColor: 'var(--koma-accent, #FFFFFF)',
+                  }}
+                  className="h-full transition-all"
                 />
               </div>
             </div>
@@ -560,7 +693,7 @@ export function SettingsView() {
         </section>
 
         <div className="pb-6 text-center font-mono-tech text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-          KOMA Sanctuary · Crafted by <span className="text-[#EAC278]">VirtualDrum</span>
+          KOMA · <span className="accent-fg font-semibold">VirtualDrum</span>
         </div>
       </div>
     </div>

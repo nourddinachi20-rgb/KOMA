@@ -3,9 +3,11 @@ import { Filter, Globe, Loader2, RefreshCw, Search, SlidersHorizontal } from 'lu
 import { useAppStore } from '../store/useAppStore';
 import type { Manga, MangaTag, SortOrder } from '../types';
 import { fetchMangaList, fetchSourceFilters, updateSourceDomain } from '../utils/api';
+import { useT } from '../utils/i18n';
 import { MangaCard } from './MangaCard';
 
 export function ExploreView() {
+  const t = useT();
   const {
     engineStatus,
     sources,
@@ -279,8 +281,8 @@ export function ExploreView() {
               onClick={() => setMobileRailOpen(true)}
               className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-medium text-white md:hidden cursor-pointer"
             >
-              <Globe className="h-3.5 w-3.5 text-[#EAC278]" />
-              <span>Sources</span>
+              <Globe className="h-3.5 w-3.5 accent-fg" />
+              <span>{t.explore.sources}</span>
             </button>
             <div>
               <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">
@@ -305,7 +307,7 @@ export function ExploreView() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search this source..."
+                placeholder={t.explore.searchPlaceholder}
                 className="w-56 rounded-full border border-white/10 bg-white/[0.05] py-1.5 pl-9 pr-4 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none"
               />
             </form>

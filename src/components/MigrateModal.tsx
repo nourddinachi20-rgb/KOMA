@@ -101,7 +101,7 @@ export function MigrateModal({ open, manga, onClose }: MigrateModalProps) {
           >
             <div className="flex items-center justify-between border-b border-white/[0.08] px-6 py-4">
               <div className="flex items-center gap-2.5">
-                <ArrowRightLeft className="h-4 w-4 text-[#EAC278]" />
+                <ArrowRightLeft className="h-4 w-4 accent-fg" />
                 <h2 className="text-base font-bold text-white">Migrate Source</h2>
               </div>
               <button

@@ -157,7 +157,7 @@ export const MangaCard = memo(function MangaCard({
           </span>
           <div className="flex items-center gap-1">
             {unread > 0 && (
-              <span className="rounded-md bg-[#EAC278] px-1.5 py-0.5 font-mono-tech text-[9px] font-bold text-black">
+              <span className="accent-bg rounded-md px-1.5 py-0.5 font-mono-tech text-[9px] font-bold">
                 +{unread}
               </span>
             )}
@@ -258,7 +258,7 @@ export const MangaCard = memo(function MangaCard({
               setMenuPos(null);
               openCommandWithQuery(manga.title);
             }}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs text-[#EAC278] transition hover:bg-white/10 cursor-pointer"
+            className="accent-fg flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs transition hover:bg-white/10 cursor-pointer"
           >
             <Search className="h-3.5 w-3.5" />
             <span>Find Other Sources</span>

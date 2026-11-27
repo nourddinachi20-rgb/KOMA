@@ -22,8 +22,8 @@ export function KomaLogo({ className = 'h-7 w-7' }: { className?: string }) {
       <path d="M28 31.5L42.5 14H50L33.5 33.5L28 31.5Z" fill="#F8F8FA" />
       {/* Lower angled slash blade */}
       <path d="M29.5 32.5L35.5 30.5L50.5 50H41.5L29.5 32.5Z" fill="#D4D4DF" />
-      {/* Champagne ink spark at cut */}
-      <path d="M28 32L31 29L34 32L31 35L28 32Z" fill="#EAC278" />
+      {/* Ink spark at cut (monochrome white by default, adapts to user accent color) */}
+      <path d="M28 32L31 29L34 32L31 35L28 32Z" style={{ fill: 'var(--koma-accent, #FFFFFF)' }} />
     </svg>
   );
 }

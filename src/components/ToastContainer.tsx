@@ -16,7 +16,7 @@ export function ToastContainer() {
               ? 'text-emerald-400'
               : t.tone === 'error'
                 ? 'text-rose-400'
-                : 'text-[#EAC278]';
+                : 'accent-fg';
 
           return (
             <motion.div

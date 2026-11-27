@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { NavView } from '../types';
+import { useT } from '../utils/i18n';
 
 interface TourStep {
   id: string;
@@ -29,10 +30,10 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     id: 'welcome',
-    title: 'Welcome to KOMA Sanctuary',
+    title: 'Welcome to KOMA',
     badge: 'MADE BY VIRTUALDRUM',
     description:
-      'Your plug-and-play OLED manga & manhwa sanctuary on Windows Desktop, Android Phones, and Tablets. Every verified source and reader tool is pre-configured out of the box.',
+      'Clean monochrome manga & manhwa reader for Windows Desktop, Android Phones, and Tablets.',
     highlights: [
       'Pure #000000 OLED canvas engineered for zero eye strain and instant switching',
       'Hourly rotating Trending Hero Spotlight with an automatic advance bar',
@@ -86,14 +87,14 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'offline',
-    title: 'Offline Sanctuary & Series Downloads',
+    title: 'Offline Downloads & Backups',
     badge: 'READ ANYWHERE',
     description:
-      'Download individual chapters or queue "Download Next 5" on any manga page. Downloaded chapters group neatly by series for airplane or offline reading.',
+      'Download individual chapters or queue "Download Next 5" on any manga page. Downloaded chapters group cleanly by series for offline reading.',
     highlights: [
       'Right-click any card anywhere in KOMA for instant Quick Actions',
       'Track read progress automatically — chapters mark read past 85% completion',
-      'Export or restore full sanctuary .json backups anytime between PC & Android',
+      'Export or restore full .json backups anytime between PC & Android',
     ],
     targetView: 'downloads',
     icon: Download,
@@ -124,6 +125,7 @@ export function TutorialOverlay() {
     completeTutorial,
   } = useAppStore();
 
+  const t = useT();
   const [stepIdx, setStepIdx] = useState(0);
 
   const visible = bootStage === 'ready' && tutorialOpen;
@@ -163,14 +165,17 @@ export function TutorialOverlay() {
             {/* Top Step Progress Rail */}
             <div className="h-[3px] w-full bg-white/[0.06]">
               <div
-                style={{ width: `${((stepIdx + 1) / TOUR_STEPS.length) * 100}%` }}
-                className="h-full bg-gradient-to-r from-[#EAC278] via-white to-[#EAC278] transition-all duration-300"
+                style={{
+                  width: `${((stepIdx + 1) / TOUR_STEPS.length) * 100}%`,
+                  backgroundColor: 'var(--koma-accent, #FFFFFF)',
+                }}
+                className="h-full transition-all duration-300"
               />
             </div>
 
             <div className="p-6 sm:p-7">
               <div className="flex items-center justify-between gap-3">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#EAC278]/30 bg-[#EAC278]/10 px-3 py-1 font-mono-tech text-[10px] font-semibold uppercase tracking-[0.2em] text-[#EAC278]">
+                <div className="accent-pill inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono-tech text-[10px] font-semibold uppercase tracking-[0.2em]">
                   <Icon className="h-3.5 w-3.5" />
                   <span>{step.badge}</span>
                 </div>
@@ -187,7 +192,10 @@ export function TutorialOverlay() {
               <ul className="mt-4 space-y-2 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 text-xs text-zinc-300">
                 {step.highlights.map((h, i) => (
                   <li key={i} className="flex items-start gap-2.5">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#EAC278]" />
+                    <span
+                      className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: 'var(--koma-accent, #FFFFFF)' }}
+                    />
                     <span>{h}</span>
                   </li>
                 ))}
@@ -198,7 +206,7 @@ export function TutorialOverlay() {
                   onClick={() => setCommandOpen(true)}
                   className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-4 py-1.5 text-xs font-medium text-white hover:bg-white/10 cursor-pointer"
                 >
-                  <Search className="h-3.5 w-3.5 text-[#EAC278]" />
+                  <Search className="h-3.5 w-3.5 accent-fg" />
                   <span>{step.quickActionLabel}</span>
                 </button>
               )}
@@ -209,7 +217,7 @@ export function TutorialOverlay() {
                   onClick={() => void handleFinish()}
                   className="text-xs text-zinc-500 transition hover:text-zinc-200 cursor-pointer"
                 >
-                  Skip Tour
+                  {t.tutorial.skip}
                 </button>
 
                 <div className="flex items-center gap-1.5">
@@ -218,8 +226,13 @@ export function TutorialOverlay() {
                       key={s.id}
                       onClick={() => setStepIdx(idx)}
                       aria-label={`Step ${idx + 1}`}
+                      style={
+                        idx === stepIdx
+                          ? { backgroundColor: 'var(--koma-accent, #FFFFFF)' }
+                          : undefined
+                      }
                       className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                        idx === stepIdx ? 'w-6 bg-[#EAC278]' : 'w-1.5 bg-white/20 hover:bg-white/40'
+                        idx === stepIdx ? 'w-6' : 'w-1.5 bg-white/20 hover:bg-white/40'
                       }`}
                     />
                   ))}
@@ -232,24 +245,24 @@ export function TutorialOverlay() {
                       className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.05] px-4 py-2 text-xs font-medium text-zinc-200 hover:bg-white/10 cursor-pointer"
                     >
                       <ArrowLeft className="h-3.5 w-3.5" />
-                      <span>Back</span>
+                      <span>{t.tutorial.back}</span>
                     </button>
                   )}
 
                   {isLast ? (
                     <button
                       onClick={() => void handleFinish()}
-                      className="flex items-center gap-2 rounded-full bg-white px-5 py-2 text-xs font-semibold text-black shadow-[0_0_25px_rgba(255,255,255,0.28)] transition hover:scale-[1.02] cursor-pointer"
+                      className="accent-bg flex items-center gap-2 rounded-full px-5 py-2 text-xs font-semibold shadow-[0_0_25px_rgba(var(--koma-accent-rgb),0.25)] transition hover:scale-[1.02] cursor-pointer"
                     >
                       <CheckCircle2 className="h-4 w-4" />
-                      <span>Enter KOMA</span>
+                      <span>{t.tutorial.enter}</span>
                     </button>
                   ) : (
                     <button
                       onClick={() => setStepIdx((i) => Math.min(TOUR_STEPS.length - 1, i + 1))}
-                      className="flex items-center gap-1.5 rounded-full bg-white px-5 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200 cursor-pointer"
+                      className="accent-bg flex items-center gap-1.5 rounded-full px-5 py-2 text-xs font-semibold transition cursor-pointer"
                     >
-                      <span>Next</span>
+                      <span>{t.tutorial.next}</span>
                       <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   )}

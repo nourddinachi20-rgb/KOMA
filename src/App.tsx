@@ -138,7 +138,7 @@ export function App() {
           className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-black/90"
         >
           <div className="flex flex-col items-center rounded-3xl border border-dashed border-white/30 bg-white/[0.04] px-14 py-12 text-center">
-            <FolderPlus className="mb-3 h-10 w-10 text-[#EAC278]" />
+            <FolderPlus className="mb-3 h-10 w-10 accent-fg" />
             <p className="text-lg font-bold text-white">Drop to Import into KOMA</p>
             <p className="mt-1 text-xs text-zinc-400">
               Supports .cbz, .zip archives, or manga folders
