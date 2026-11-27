@@ -170,7 +170,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   discordRpc: false,
   discordClientId: '',
   autoCheckUpdates: true,
-  githubRepo: 'VirtualDrum/KOMA',
+  githubRepo: 'nourddinachi20-rgb/KOMA',
   hasCompletedTutorial: false,
   lastSeenVersion: '',
   pendingWhatsNewNotes: '',

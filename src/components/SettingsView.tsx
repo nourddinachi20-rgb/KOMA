@@ -462,7 +462,7 @@ export function SettingsView() {
               </div>
             </div>
             <input
-              value={settings.githubRepo ?? 'VirtualDrum/KOMA'}
+              value={settings.githubRepo ?? 'nourddinachi20-rgb/KOMA'}
               onChange={(e) => void updateSettings({ githubRepo: e.target.value.trim() })}
               placeholder="owner/repo"
               className="w-56 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-1.5 font-mono-tech text-xs text-white focus:border-white/25 focus:outline-none"

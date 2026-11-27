@@ -493,7 +493,7 @@ class KomaNativePlugin : Plugin() {
 
     private fun checkForAndroidUpdateRpc(repoArg: String): String {
         val currentVersion = getAppVersionString()
-        val repo = repoArg.ifBlank { mergeSettings().optString("githubRepo", "VirtualDrum/KOMA") }.trim()
+        val repo = repoArg.ifBlank { mergeSettings().optString("githubRepo", "nourddinachi20-rgb/KOMA") }.trim()
         return runCatching {
             val req = Request.Builder()
                 .url("https://api.github.com/repos/$repo/releases/latest")
@@ -1106,7 +1106,7 @@ class KomaNativePlugin : Plugin() {
               "discordRpc":false,
               "discordClientId":"",
               "autoCheckUpdates":true,
-              "githubRepo":"VirtualDrum/KOMA",
+              "githubRepo":"nourddinachi20-rgb/KOMA",
               "hasCompletedTutorial":false,
               "lastSeenVersion":"",
               "pendingWhatsNewNotes":""

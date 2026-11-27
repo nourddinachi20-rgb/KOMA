@@ -33,7 +33,7 @@ function compareSemver(a: string, b: string): number {
 
 export async function checkDesktopUpdate(repoInput?: string): Promise<DesktopUpdateCheckResult> {
   const currentVersion = app.getVersion() || '1.0.0';
-  const repo = (repoInput || storageManager.getSettings().githubRepo || 'VirtualDrum/KOMA').trim();
+  const repo = (repoInput || storageManager.getSettings().githubRepo || 'nourddinachi20-rgb/KOMA').trim();
 
   try {
     const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
