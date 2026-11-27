@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.0.1';
 
 export interface ChangelogSection {
   title: string;
@@ -7,19 +7,12 @@ export interface ChangelogSection {
 }
 
 export const DEFAULT_WHATS_NEW_NOTES = `### New Features
-- **Android Phone & Tablet App:** Native embedded Kotlin parser engine, adaptive bottom dock & tablet rails, touch pinch-to-zoom, and WebView Cloudflare solver.
-- **In-App GitHub Auto-Updater:** Check version & update both Windows (.exe) and Android (.apk) straight from Settings with automatic restart.
-- **Interactive Onboarding Tour:** Step-by-step walkthrough of Home, Explore, Reader, and Offline downloads.
-- **In-Reader Chapter List & Page Scrubber:** Jump chapters mid-read (C) and scrub with live page tooltips.
+- **Theme & Color Customization:** Switch between Pure Black (#000000), Dark Slate, and Light Paper in Settings, plus custom accent colors.
+- **Interface Languages:** Added English, French, and Arabic UI support (with RTL layout for Arabic).
 
-### Improvements & Performance
-- **Zero-Blur OLED Compositing:** Pure CSS radial lighting, instant native Windows fonts, and 0ms persistent core tabs.
-- **Tilted Manga Cover Intro:** Instant SSD-cached manga cover wall featuring "Made by VirtualDrum".
-- **Curated Trending Feeds:** Hero Spotlight and Home shelves locked to top popularity rankings across MangaBall, MangaDex, AsuraScans, and WeebCentral.
-
-### Bug Fixes
-- **Cover Loading Race on Boot:** Eliminated pre-boot external cover hotlink failures and added exponential retry + Kotlin host semaphores.
-- **AniList Title Lookup:** Stripped source tags like (LICO) and added altTitles fallback so Related Entries & Recommendations load reliably.`;
+### Improvements
+- **Pure Black & White UI:** Replaced gold/amber highlights with monochrome black-and-white across Home, Library, Reader, Settings, and Splash.
+- **Cleaner Home Spotlight:** Removed the bottom spotlight carousel thumbnail bar for a cleaner layout.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

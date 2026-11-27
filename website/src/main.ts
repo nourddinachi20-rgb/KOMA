@@ -1,8 +1,8 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.0.0';
-const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Android.apk`;
+const DEFAULT_VERSION = '1.0.1';
+const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/latest/download/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
   name: string;
