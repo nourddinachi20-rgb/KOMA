@@ -297,17 +297,17 @@ export function MangaDetailsPage() {
       )}
 
       <div className="relative z-10 mx-auto max-w-[1400px] px-6 pb-20 pt-4 sm:px-10">
-        {/* Sticky Top Back Bar */}
-        <div className="mb-6 flex items-center justify-between">
+        {/* Top Back Bar (draggable on Desktop since global header is hidden on manga pages) */}
+        <div className="app-drag pt-safe mb-6 flex items-center justify-between">
           <button
             onClick={closeManga}
-            className="oled-glass-subtle flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-zinc-200 transition hover:border-white/25 hover:text-white cursor-pointer"
+            className="app-no-drag oled-glass-subtle flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-zinc-200 transition hover:border-white/25 hover:text-white cursor-pointer"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Back</span>
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="app-no-drag flex items-center gap-2">
             {anilist?.siteUrl && (
               <a
                 href={anilist.siteUrl}
@@ -564,8 +564,19 @@ export function MangaDetailsPage() {
           </div>
 
           {error && (
-            <div className="mb-5 rounded-2xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
-              Failed to refresh from {manga.source}: {error}
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+              <span>
+                Source unavailable ({manga.source}): {error}
+              </span>
+              {manga.source !== 'LOCAL' && (
+                <button
+                  type="button"
+                  onClick={() => setMigrateOpen(true)}
+                  className="rounded-full bg-white px-3.5 py-1 text-[11px] font-semibold text-black hover:bg-zinc-200 cursor-pointer"
+                >
+                  Migrate Source
+                </button>
+              )}
             </div>
           )}
 

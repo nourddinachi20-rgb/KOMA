@@ -87,6 +87,8 @@ interface AppState {
   filtersCache: Record<string, FilterMetadata>;
   exploreCache: Record<string, ExploreCacheEntry>;
   chapterPagesCache: Record<string, string[]>;
+  failedSourceKeys: Record<string, boolean>;
+  markSourceFailed: (key: string, failed: boolean) => void;
 
   activeView: NavView;
   exploreSource: string;
@@ -225,6 +227,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   filtersCache: {},
   exploreCache: {},
   chapterPagesCache: {},
+  failedSourceKeys: {},
+  markSourceFailed: (key, failed) =>
+    set((s) => {
+      const next = { ...s.failedSourceKeys };
+      if (failed) next[key] = true;
+      else delete next[key];
+      return { failedSourceKeys: next };
+    }),
 
   activeView: 'home',
   exploreSource: 'MANGABALL_EN',
@@ -372,10 +382,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       const full = await fetchMangaDetails(engineStatus.url!, manga);
-      set((s) => ({ detailsCache: { ...s.detailsCache, [key]: full } }));
+      set((s) => {
+        const nextFailed = { ...s.failedSourceKeys };
+        delete nextFailed[key];
+        return {
+          detailsCache: { ...s.detailsCache, [key]: full },
+          failedSourceKeys: nextFailed,
+        };
+      });
       return full;
     })()
-      .catch(() => null)
+      .catch(() => {
+        set((s) => ({ failedSourceKeys: { ...s.failedSourceKeys, [key]: true } }));
+        return null;
+      })
       .finally(() => {
         inFlightDetails.delete(key);
       });
@@ -819,8 +839,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
-    set({ library, history, selectedManga: newFull });
-    get().notify(`Migrated to ${newFull.source}`, 'success');
+    const currentSelected = get().selectedManga;
+    const shouldUpdateSelected =
+      currentSelected && `${currentSelected.source}::${currentSelected.id}` === oldKey;
+    const nextFailed = { ...get().failedSourceKeys };
+    delete nextFailed[oldKey];
+    delete nextFailed[newKey];
+
+    set({
+      library,
+      history,
+      failedSourceKeys: nextFailed,
+      ...(shouldUpdateSelected ? { selectedManga: newFull } : {}),
+    });
+    if (shouldUpdateSelected) {
+      get().notify(`Migrated to ${newFull.source}`, 'success');
+    }
   },
 
   recordReadingPulse: async (pagesDelta, chapterCompleted, tags) => {

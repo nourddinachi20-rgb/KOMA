@@ -104,7 +104,7 @@ export function App() {
       onDrop={handleDrop}
       className="relative flex h-screen w-screen flex-col overflow-hidden bg-black text-white"
     >
-      <TitleBar />
+      {!selectedManga && <TitleBar />}
 
       <main className="relative flex-1 overflow-hidden">
         {/* Keep core views mounted for 0ms instant tab switching & scroll preservation */}

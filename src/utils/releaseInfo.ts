@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.0.2';
+export const APP_VERSION = '1.0.3';
 
 export interface ChangelogSection {
   title: string;
@@ -7,16 +7,10 @@ export interface ChangelogSection {
 }
 
 export const DEFAULT_WHATS_NEW_NOTES = `### New Features
-- **Flexible Download Picker:** Download unread chapters, all chapters, custom chapter ranges, or individual chapters.
-- **Swipe Page Turns:** Swipe left/right to turn pages in Manga / Spread reader modes on phone and tablet.
-- **Backup Compatibility:** Restore backups from Kotatsu (.bk/.zip), Mihon & Komikku (.tachibk/.proto.gz), and KOMA (.json).
+- **Broken-Source Detector & Bulk Migration:** Automatically detects library manga from broken or missing sources with a Filter Broken toggle and one-click Migrate All workflow.
 
 ### Improvements
-- **Mobile & UI Cleanup:** Compact Library view showing your manga immediately, 3rd card peek in carousels, unified font, organized Settings sections, and aligned series action buttons.
-- **Auto Format Detection:** Automatically detects Long-Strip Webtoons vs Manga from tags and loaded page aspect ratios.
-
-### Fixes
-- **Mobile Notifications:** Long notification toasts now wrap cleanly inside screen bounds.`;
+- **Clean Manga Page Header:** Hides the global app bar (logo, search, settings) when viewing a manga page.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

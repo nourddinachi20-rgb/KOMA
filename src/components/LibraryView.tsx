@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
+  AlertTriangle,
+  ArrowRightLeft,
   BarChart2,
   BookCheck,
   Flame,
@@ -16,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useT } from '../utils/i18n';
+import { BulkMigrateModal } from './BulkMigrateModal';
 import { MangaCard } from './MangaCard';
 
 function computeStreakDays(days: string[]): number {
@@ -45,6 +48,9 @@ export function LibraryView() {
     categories,
     history,
     stats,
+    sources,
+    engineStatus,
+    failedSourceKeys,
     detailsCache,
     checkingUpdates,
     checkLibraryUpdates,
@@ -62,15 +68,35 @@ export function LibraryView() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'lastRead' | 'unread' | 'title' | 'added'>('lastRead');
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [brokenOnly, setBrokenOnly] = useState(false);
+  const [bulkMigrateOpen, setBulkMigrateOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [addingCat, setAddingCat] = useState(false);
 
+  const brokenEntries = useMemo(() => {
+    if (!engineStatus.ready || sources.length === 0) return [];
+    const activeMap = new Map(sources.map((s) => [s.name, s]));
+    return library.filter((entry) => {
+      if (entry.manga.source === 'LOCAL') return false;
+      if (failedSourceKeys[entry.key]) return true;
+      if (entry.manga.id.startsWith('mihon-')) return true;
+      const src = activeMap.get(entry.manga.source);
+      return !src || src.isBroken;
+    });
+  }, [library, sources, engineStatus.ready, failedSourceKeys]);
+
+  const brokenKeySet = useMemo(
+    () => new Set(brokenEntries.map((e) => e.key)),
+    [brokenEntries],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = library.filter((entry) => {
+      if (brokenOnly && !brokenKeySet.has(entry.key)) return false;
       if (activeCat !== 'all' && !entry.categoryIds.includes(activeCat)) return false;
       if (unreadOnly && (entry.unreadCount ?? 0) <= 0) return false;
       if (q && !entry.manga.title.toLowerCase().includes(q)) return false;
@@ -94,7 +120,7 @@ export function LibraryView() {
       const bT = histTime.get(b.key) ?? b.lastReadAt ?? b.addedAt;
       return bT - aT;
     });
-  }, [library, history, activeCat, unreadOnly, search, sortBy]);
+  }, [library, history, activeCat, unreadOnly, brokenOnly, brokenKeySet, search, sortBy]);
 
   const handleQuickPlay = async (entry: (typeof library)[number]) => {
     const hist = history.find((h) => h.key === entry.key);
@@ -377,6 +403,39 @@ export function LibraryView() {
         )}
       </div>
 
+      {/* Broken Source Detector Banner */}
+      {brokenEntries.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rose-500/20 bg-rose-500/[0.08] px-4 py-2 text-xs sm:px-6">
+          <div className="flex items-center gap-2 text-rose-200">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rose-400" />
+            <span>
+              {brokenEntries.length} manga from broken or unavailable sources
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setBrokenOnly((b) => !b)}
+              className={`rounded-full border px-3 py-1 text-[11px] font-medium transition cursor-pointer ${
+                brokenOnly
+                  ? 'border-rose-400 bg-rose-500 text-black'
+                  : 'border-rose-400/30 text-rose-200 hover:bg-rose-500/15'
+              }`}
+            >
+              {brokenOnly ? 'Showing Broken' : 'Filter Broken'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkMigrateOpen(true)}
+              className="flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1 text-[11px] font-semibold text-black hover:bg-zinc-200 cursor-pointer"
+            >
+              <ArrowRightLeft className="h-3 w-3" />
+              <span>Migrate All</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Grid */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {filtered.length > 0 ? (
@@ -391,6 +450,7 @@ export function LibraryView() {
                 <MangaCard
                   key={entry.key}
                   manga={entry.manga}
+                  broken={brokenKeySet.has(entry.key)}
                   subtitle={hist ? `Ch. ${hist.chapterNumber || '?'}` : undefined}
                   progressPercent={pct}
                   onQuickPlay={() => void handleQuickPlay(entry)}
@@ -413,6 +473,12 @@ export function LibraryView() {
           </div>
         )}
       </div>
+
+      <BulkMigrateModal
+        open={bulkMigrateOpen}
+        entries={brokenEntries}
+        onClose={() => setBulkMigrateOpen(false)}
+      />
     </div>
   );
 }
