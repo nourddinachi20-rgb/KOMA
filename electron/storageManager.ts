@@ -90,6 +90,8 @@ export interface AppSettings {
   hasCompletedTutorial: boolean;
   lastSeenVersion: string;
   pendingWhatsNewNotes: string;
+  syncServerUrl?: string;
+  syncUsername?: string;
 }
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -134,6 +136,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   hasCompletedTutorial: false,
   lastSeenVersion: '',
   pendingWhatsNewNotes: '',
+  syncServerUrl: '',
+  syncUsername: '',
 };
 
 const DEFAULT_STATS: ReadingStats = {

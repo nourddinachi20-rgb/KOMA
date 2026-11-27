@@ -235,6 +235,8 @@ export interface AppSettings {
   hasCompletedTutorial: boolean;
   lastSeenVersion: string;
   pendingWhatsNewNotes: string;
+  syncServerUrl?: string;
+  syncUsername?: string;
 }
 
 export interface UpdateCheckResult {

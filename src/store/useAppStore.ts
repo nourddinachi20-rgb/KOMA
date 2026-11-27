@@ -32,6 +32,13 @@ import {
   parseAnyBackupBytes,
   type BackupSourceFormat,
 } from '../utils/backupImporter';
+import {
+  remoteCreateAccount,
+  remotePushVault,
+  remoteSignInAndPull,
+  type SyncVaultPayload,
+} from '../utils/syncClient';
+import type { SyncCredentials } from '../utils/syncCrypto';
 import { applyCustomizationToDocument } from '../utils/theme';
 
 export const HOUR_MS = 60 * 60 * 1000;
@@ -89,6 +96,13 @@ interface AppState {
   chapterPagesCache: Record<string, string[]>;
   failedSourceKeys: Record<string, boolean>;
   markSourceFailed: (key: string, failed: boolean) => void;
+  syncSession: SyncCredentials | null;
+  syncLastAt: number;
+  syncBusy: boolean;
+  syncCreateAccount: (serverUrl: string, username: string, password: string) => Promise<void>;
+  syncSignIn: (serverUrl: string, username: string, password: string) => Promise<void>;
+  syncPushNow: () => Promise<void>;
+  syncSignOut: () => Promise<void>;
 
   activeView: NavView;
   exploreSource: string;
@@ -193,6 +207,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   hasCompletedTutorial: false,
   lastSeenVersion: '',
   pendingWhatsNewNotes: '',
+  syncServerUrl: '',
+  syncUsername: '',
 };
 
 const ALLOWED_LOCALES = new Set(['en', 'fr', 'ar', '']);
@@ -235,6 +251,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       else delete next[key];
       return { failedSourceKeys: next };
     }),
+  syncSession: null,
+  syncLastAt: 0,
+  syncBusy: false,
 
   activeView: 'home',
   exploreSource: 'MANGABALL_EN',
@@ -1113,5 +1132,105 @@ export const useAppStore = create<AppState>((set, get) => ({
       historyCount: addedHist,
       unresolvedExternalCount: parsed.unresolvedExternalCount,
     };
+  },
+
+  syncCreateAccount: async (serverUrl, username, password) => {
+    set({ syncBusy: true });
+    try {
+      const state = get();
+      const payload: SyncVaultPayload = {
+        categories: state.categories,
+        library: state.library,
+        history: state.history,
+        stats: state.stats,
+        syncedAt: Date.now(),
+      };
+      const creds = await remoteCreateAccount(serverUrl, username, password, payload);
+      await get().updateSettings({ syncServerUrl: serverUrl.trim(), syncUsername: creds.username });
+      set({ syncSession: creds, syncLastAt: payload.syncedAt });
+      get().notify(`Account "${creds.username}" created (End-to-End Encrypted)`, 'success');
+    } finally {
+      set({ syncBusy: false });
+    }
+  },
+
+  syncSignIn: async (serverUrl, username, password) => {
+    set({ syncBusy: true });
+    try {
+      const { creds, payload, updatedAt } = await remoteSignInAndPull(
+        serverUrl,
+        username,
+        password,
+      );
+      if (payload) {
+        // Merge remote encrypted vault cleanly with local library/categories/history
+        const catMap = new Map<string, Category>();
+        for (const c of get().categories) catMap.set(c.id, c);
+        for (const c of payload.categories ?? []) if (!catMap.has(c.id)) catMap.set(c.id, c);
+
+        const libMap = new Map<string, LibraryEntry>();
+        for (const l of get().library) libMap.set(l.key, l);
+        for (const l of payload.library ?? []) {
+          const prev = libMap.get(l.key);
+          if (!prev) {
+            libMap.set(l.key, l);
+          } else {
+            const readIds = Array.from(
+              new Set([...(prev.readChapterIds ?? []), ...(l.readChapterIds ?? [])]),
+            );
+            libMap.set(l.key, {
+              ...(l.lastReadAt && (!prev.lastReadAt || l.lastReadAt > prev.lastReadAt) ? l : prev),
+              categoryIds: Array.from(new Set([...prev.categoryIds, ...l.categoryIds])),
+              readChapterIds: readIds,
+            });
+          }
+        }
+
+        const histMap = new Map<string, HistoryEntry>();
+        for (const h of get().history) histMap.set(h.key, h);
+        for (const h of payload.history ?? []) {
+          const prev = histMap.get(h.key);
+          if (!prev || h.updatedAt > prev.updatedAt) histMap.set(h.key, h);
+        }
+
+        await window.noctis.applyBackupData({
+          categories: Array.from(catMap.values()),
+          library: Array.from(libMap.values()),
+          history: Array.from(histMap.values()).sort((a, b) => b.updatedAt - a.updatedAt),
+        });
+        await get().refreshAllData();
+      }
+      await get().updateSettings({ syncServerUrl: serverUrl.trim(), syncUsername: creds.username });
+      set({ syncSession: creds, syncLastAt: updatedAt || Date.now() });
+      get().notify(`Synced encrypted vault for "${creds.username}"`, 'success');
+    } finally {
+      set({ syncBusy: false });
+    }
+  },
+
+  syncPushNow: async () => {
+    const { syncSession, settings } = get();
+    if (!syncSession || !settings.syncServerUrl) return;
+    set({ syncBusy: true });
+    try {
+      const now = Date.now();
+      const ts = await remotePushVault(settings.syncServerUrl, syncSession, {
+        categories: get().categories,
+        library: get().library,
+        history: get().history,
+        stats: get().stats,
+        syncedAt: now,
+      });
+      set({ syncLastAt: ts });
+      get().notify('Encrypted sync complete', 'success');
+    } finally {
+      set({ syncBusy: false });
+    }
+  },
+
+  syncSignOut: async () => {
+    set({ syncSession: null, syncLastAt: 0 });
+    await get().updateSettings({ syncUsername: '' });
+    get().notify('Signed out of sync account', 'info');
   },
 }));

@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.0.3';
+export const APP_VERSION = '1.0.4';
 
 export interface ChangelogSection {
   title: string;
@@ -7,10 +7,11 @@ export interface ChangelogSection {
 }
 
 export const DEFAULT_WHATS_NEW_NOTES = `### New Features
-- **Broken-Source Detector & Bulk Migration:** Automatically detects library manga from broken or missing sources with a Filter Broken toggle and one-click Migrate All workflow.
+- **Zero-Knowledge Account Sync:** Sign up or sign in using only a Username + Password (no Google, no email). Everything is AES-256-GCM encrypted on your device before syncing across devices.
+- **Open-Source Sync Worker:** Included lightweight Cloudflare Worker backend in sync-worker/ for free hosting or self-hosting.
 
 ### Improvements
-- **Clean Manga Page Header:** Hides the global app bar (logo, search, settings) when viewing a manga page.`;
+- **Much Faster Bulk Migration:** Broken-source migration now searches 4 titles concurrently with smart early-exit instead of blasting all 8 sources sequentially.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

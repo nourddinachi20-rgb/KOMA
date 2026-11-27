@@ -1115,7 +1115,9 @@ class KomaNativePlugin : Plugin() {
               "githubRepo":"nourddinachi20-rgb/KOMA",
               "hasCompletedTutorial":false,
               "lastSeenVersion":"",
-              "pendingWhatsNewNotes":""
+              "pendingWhatsNewNotes":"",
+              "syncServerUrl":"",
+              "syncUsername":""
             }
         """.trimIndent()
     }

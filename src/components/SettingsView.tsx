@@ -16,7 +16,7 @@ import type { UiLanguage, UiTheme } from '../types';
 import { useT } from '../utils/i18n';
 import { ACCENT_PRESETS } from '../utils/theme';
 
-type SectionKey = 'appearance' | 'reader' | 'backup' | 'trackers' | 'about';
+type SectionKey = 'account' | 'appearance' | 'reader' | 'backup' | 'trackers' | 'about';
 
 export function SettingsView() {
   const t = useT();
@@ -24,12 +24,18 @@ export function SettingsView() {
     settings,
     updateSettings,
     engineStatus,
-    refreshAllData,
     trackerConfig,
     refreshTracker,
     setCommandOpen,
     notify,
     restoreUnifiedBackup,
+    syncSession,
+    syncLastAt,
+    syncBusy,
+    syncCreateAccount,
+    syncSignIn,
+    syncPushNow,
+    syncSignOut,
     appVersion,
     checkingAppUpdate,
     appUpdateInfo,
@@ -44,6 +50,9 @@ export function SettingsView() {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [tokenInput, setTokenInput] = useState('');
   const [connecting, setConnecting] = useState(false);
+  const [syncServerInput, setSyncServerInput] = useState(() => settings.syncServerUrl ?? '');
+  const [syncUserInput, setSyncUserInput] = useState(() => settings.syncUsername ?? '');
+  const [syncPassInput, setSyncPassInput] = useState('');
   const [cacheStats, setCacheStats] = useState<{ files: number; bytes: number } | null>(null);
   const [clearingCache, setClearingCache] = useState(false);
   const [anilistList, setAnilistList] = useState<
@@ -180,6 +189,120 @@ export function SettingsView() {
             {statusMsg}
           </div>
         )}
+
+        {/* 0. Account & Zero-Knowledge Encrypted Sync */}
+        <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+          <SectionHeader
+            id="account"
+            title="Account & Sync"
+            summary={
+              syncSession
+                ? `Signed in as ${syncSession.username}`
+                : settings.syncUsername
+                  ? `Saved user: ${settings.syncUsername} · Enter password to sync`
+                  : 'Username + Password · Zero-Knowledge Encrypted'
+            }
+          />
+          {openSection === 'account' && (
+            <div className="space-y-4 border-t border-white/[0.06] px-5 py-4">
+              <div className="rounded-xl border border-white/[0.08] bg-black/40 px-3.5 py-2.5 text-xs text-zinc-400">
+                <strong className="text-white">End-to-End Encrypted:</strong> Your library and history are encrypted on your device using your password before syncing. No Google sign-in, no email, and the server cannot read your data.
+              </div>
+
+              {syncSession ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                    <div>
+                      <div className="text-sm font-semibold text-white">
+                        {syncSession.username}
+                      </div>
+                      <div className="text-[11px] text-zinc-400">
+                        {syncLastAt > 0
+                          ? `Last synced ${new Date(syncLastAt).toLocaleTimeString()}`
+                          : 'Connected'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={syncBusy}
+                        onClick={() =>
+                          void syncPushNow().catch((e) =>
+                            notify(e instanceof Error ? e.message : 'Sync failed', 'error'),
+                          )
+                        }
+                        className="accent-bg rounded-full px-4 py-1.5 text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                      >
+                        {syncBusy ? 'Syncing...' : 'Sync Now'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void syncSignOut()}
+                        className="rounded-full border border-white/15 px-3.5 py-1.5 text-xs text-zinc-300 hover:text-white cursor-pointer"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <input
+                    value={syncServerInput}
+                    onChange={(e) => setSyncServerInput(e.target.value)}
+                    placeholder="Sync Server URL (e.g. https://koma-zero-knowledge-sync...workers.dev)"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none"
+                  />
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <input
+                      value={syncUserInput}
+                      onChange={(e) => setSyncUserInput(e.target.value)}
+                      placeholder="Username (a-z, 0-9)"
+                      className="rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none"
+                    />
+                    <input
+                      type="password"
+                      value={syncPassInput}
+                      onChange={(e) => setSyncPassInput(e.target.value)}
+                      placeholder="Password (min 6 chars)"
+                      className="rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={syncBusy || !syncUserInput.trim() || !syncPassInput}
+                      onClick={() =>
+                        void syncSignIn(syncServerInput, syncUserInput, syncPassInput)
+                          .then(() => setSyncPassInput(''))
+                          .catch((e) =>
+                            notify(e instanceof Error ? e.message : 'Sign in failed', 'error'),
+                          )
+                      }
+                      className="accent-bg rounded-full px-5 py-2 text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                    >
+                      {syncBusy ? 'Please wait...' : 'Sign In & Sync'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={syncBusy || !syncUserInput.trim() || !syncPassInput}
+                      onClick={() =>
+                        void syncCreateAccount(syncServerInput, syncUserInput, syncPassInput)
+                          .then(() => setSyncPassInput(''))
+                          .catch((e) =>
+                            notify(e instanceof Error ? e.message : 'Register failed', 'error'),
+                          )
+                      }
+                      className="rounded-full border border-white/15 bg-white/[0.06] px-4 py-2 text-xs font-medium text-white hover:bg-white/10 disabled:opacity-40 cursor-pointer"
+                    >
+                      Create Account
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
 
         {/* 1. Appearance & Language */}
         <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">

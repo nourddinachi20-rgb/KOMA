@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { LibraryEntry, Manga } from '../types';
-import { fetchMangaDetails, fetchMangaList, searchAcrossSources } from '../utils/api';
+import { fetchMangaDetails, fetchMangaList } from '../utils/api';
 import { MigrateModal } from './MigrateModal';
 
 interface BulkMigrateModalProps {
@@ -58,6 +58,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
 
   const [targetMode, setTargetMode] = useState<string>('AUTO');
   const [running, setRunning] = useState(false);
+  const [doneCount, setDoneCount] = useState(0);
   const [rowStatus, setRowStatus] = useState<Record<string, RowProgress>>({});
   const [manualEntry, setManualEntry] = useState<LibraryEntry | null>(null);
   const stopRef = useRef(false);
@@ -81,90 +82,103 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
       .filter((s) => !s.isBroken && (s.locale === 'en' || s.locale === ''))
       .slice(0, 6)
       .map((s) => s.name);
-    return Array.from(new Set([...pinned, ...extra])).slice(0, 8);
+    return Array.from(new Set([...pinned, ...extra])).slice(0, 6);
   }, [sources, settings.pinnedSources]);
+
+  const migrateSingleEntry = async (entry: LibraryEntry, engineUrl: string): Promise<boolean> => {
+    setRowStatus((prev) => ({
+      ...prev,
+      [entry.key]: { status: 'searching', message: 'Searching...' },
+    }));
+
+    try {
+      let matchedFull: Manga | null = null;
+
+      if (targetMode === 'AUTO') {
+        const pool = autoTargetPool.filter((s) => s !== entry.manga.source);
+        // Sequential wave over top fast working sources with early short-circuit (avoids waiting on 8 slow sources)
+        for (const srcName of pool) {
+          if (stopRef.current) break;
+          const items = await fetchMangaList(engineUrl, srcName, {
+            query: entry.manga.title,
+          }).catch(() => []);
+          const best = pickBestCandidate(entry, items);
+          if (!best) continue;
+          const full = await fetchMangaDetails(engineUrl, best).catch(() => null);
+          if (full && full.chapters && full.chapters.length > 0) {
+            matchedFull = full;
+            break;
+          }
+          if (!matchedFull && full) matchedFull = full;
+        }
+      } else {
+        const list = await fetchMangaList(engineUrl, targetMode, {
+          query: entry.manga.title,
+        }).catch(() => []);
+        const best = pickBestCandidate(entry, list);
+        if (best) {
+          matchedFull = (await fetchMangaDetails(engineUrl, best).catch(() => null)) ?? best;
+        }
+      }
+
+      if (matchedFull) {
+        await migrateLibraryManga(entry.key, matchedFull);
+        const srcLabel =
+          sources.find((s) => s.name === matchedFull!.source)?.title ?? matchedFull.source;
+        setRowStatus((prev) => ({
+          ...prev,
+          [entry.key]: {
+            status: 'done',
+            message: `${srcLabel}${matchedFull.chapters ? ` · ${matchedFull.chapters.length} ch` : ''}`,
+          },
+        }));
+        return true;
+      }
+
+      setRowStatus((prev) => ({
+        ...prev,
+        [entry.key]: { status: 'failed', message: 'No match' },
+      }));
+      return false;
+    } catch {
+      setRowStatus((prev) => ({
+        ...prev,
+        [entry.key]: { status: 'failed', message: 'Error' },
+      }));
+      return false;
+    }
+  };
 
   const handleStartAll = async () => {
     if (running || !engineStatus.ready || !engineStatus.url || entries.length === 0) return;
     stopRef.current = false;
     setRunning(true);
+    setDoneCount(0);
 
+    const queue = entries.filter((e) => rowStatus[e.key]?.status !== 'done');
+    const engineUrl = engineStatus.url;
     let migratedCount = 0;
     let failedCount = 0;
+    let cursor = 0;
+    const workerCount = Math.min(4, queue.length);
 
-    for (const entry of entries) {
-      if (stopRef.current) break;
-      const curState = rowStatus[entry.key]?.status;
-      if (curState === 'done') continue;
-
-      setRowStatus((prev) => ({
-        ...prev,
-        [entry.key]: { status: 'searching', message: 'Searching...' },
-      }));
-
-      try {
-        let matchedFull: Manga | null = null;
-
-        if (targetMode === 'AUTO') {
-          const pool = autoTargetPool.filter((s) => s !== entry.manga.source);
-          const groups = await searchAcrossSources(
-            engineStatus.url,
-            entry.manga.title,
-            pool,
-          ).catch(() => []);
-          for (const g of groups) {
-            const best = pickBestCandidate(entry, g.items);
-            if (!best) continue;
-            const full = await fetchMangaDetails(engineStatus.url, best).catch(() => null);
-            if (full && full.chapters && full.chapters.length > 0) {
-              matchedFull = full;
-              break;
-            }
-            if (!matchedFull && full) matchedFull = full;
-          }
-        } else {
-          const list = await fetchMangaList(engineStatus.url, targetMode, {
-            query: entry.manga.title,
-          }).catch(() => []);
-          const best = pickBestCandidate(entry, list);
-          if (best) {
-            matchedFull =
-              (await fetchMangaDetails(engineStatus.url, best).catch(() => null)) ?? best;
-          }
-        }
-
-        if (matchedFull) {
-          await migrateLibraryManga(entry.key, matchedFull);
-          migratedCount++;
-          const srcLabel =
-            sources.find((s) => s.name === matchedFull!.source)?.title ?? matchedFull.source;
-          setRowStatus((prev) => ({
-            ...prev,
-            [entry.key]: {
-              status: 'done',
-              message: `${srcLabel}${matchedFull.chapters ? ` · ${matchedFull.chapters.length} ch` : ''}`,
-            },
-          }));
-        } else {
-          failedCount++;
-          setRowStatus((prev) => ({
-            ...prev,
-            [entry.key]: { status: 'failed', message: 'No match found' },
-          }));
-        }
-      } catch {
-        failedCount++;
-        setRowStatus((prev) => ({
-          ...prev,
-          [entry.key]: { status: 'failed', message: 'Migration error' },
-        }));
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (!stopRef.current) {
+        const idx = cursor++;
+        if (idx >= queue.length) break;
+        const ok = await migrateSingleEntry(queue[idx], engineUrl);
+        if (ok) migratedCount++;
+        else failedCount++;
+        setDoneCount((d) => d + 1);
       }
-    }
+    });
+
+    await Promise.all(workers);
 
     setRunning(false);
     if (!stopRef.current) {
       notify(
-        `Migrated ${migratedCount} manga${failedCount > 0 ? ` · ${failedCount} need manual match` : ''}`,
+        `Migrated ${migratedCount} manga${failedCount > 0 ? ` · ${failedCount} unmatched` : ''}`,
         migratedCount > 0 ? 'success' : 'info',
       );
     }
@@ -196,7 +210,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
                 <div>
                   <h2 className="text-base font-bold text-white">Migrate Broken Sources</h2>
                   <p className="text-xs text-zinc-400">
-                    {entries.length} manga detected from unavailable sources · progress kept
+                    {entries.length} manga · {running ? `${doneCount} / ${entries.length} processed` : '4x parallel search with progress kept'}
                   </p>
                 </div>
                 <button
@@ -219,7 +233,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
                     onChange={(e) => setTargetMode(e.target.value)}
                     className="max-w-[260px] rounded-full border border-white/15 bg-black px-3.5 py-1.5 text-xs text-white focus:outline-none cursor-pointer"
                   >
-                    <option value="AUTO">Auto (Pinned Working Sources)</option>
+                    <option value="AUTO">Auto (Fast Working Sources)</option>
                     {sortedSources.map((s) => (
                       <option key={s.name} value={s.name}>
                         {s.title} ({s.locale ? s.locale.toUpperCase() : 'MULTI'})
@@ -315,7 +329,9 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
                     <ArrowRightLeft className="h-3.5 w-3.5" />
                   )}
                   <span>
-                    {running ? 'Migrating...' : `Migrate All (${pendingEntries.length})`}
+                    {running
+                      ? `Migrating ${doneCount}/${entries.length}...`
+                      : `Migrate All (${pendingEntries.length})`}
                   </span>
                 </button>
               </div>
