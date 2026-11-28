@@ -240,6 +240,7 @@ export interface AppSettings {
   syncUsername?: string;
   syncAuthHash?: string;
   syncKeyJwk?: string;
+  deletedLibraryKeys?: Record<string, number>;
 }
 
 export interface UpdateCheckResult {

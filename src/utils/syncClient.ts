@@ -14,6 +14,7 @@ export interface SyncVaultPayload {
   library: LibraryEntry[];
   history: HistoryEntry[];
   stats?: ReadingStats;
+  deletedLibraryKeys?: Record<string, number>;
   syncedAt: number;
 }
 

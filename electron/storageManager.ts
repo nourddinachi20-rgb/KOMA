@@ -95,6 +95,7 @@ export interface AppSettings {
   syncUsername?: string;
   syncAuthHash?: string;
   syncKeyJwk?: string;
+  deletedLibraryKeys?: Record<string, number>;
 }
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -144,6 +145,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   syncUsername: '',
   syncAuthHash: '',
   syncKeyJwk: '',
+  deletedLibraryKeys: {},
 };
 
 const DEFAULT_STATS: ReadingStats = {

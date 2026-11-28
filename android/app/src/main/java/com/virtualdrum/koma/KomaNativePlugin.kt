@@ -376,10 +376,10 @@ class KomaNativePlugin : Plugin() {
                 if (!replaced) {
                     val prepended = JSONArray().put(entry)
                     for (i in 0 until out.length()) prepended.put(out.get(i))
-                    writeFileText("library.json", prepended.toString(2))
+                    writeFileText("library.json", prepended.toString())
                     return prepended.toString()
                 }
-                writeFileText("library.json", out.toString(2))
+                writeFileText("library.json", out.toString())
                 out.toString()
             }
             "removeLibrary" -> {
@@ -390,7 +390,7 @@ class KomaNativePlugin : Plugin() {
                     val cur = arr.getJSONObject(i)
                     if (cur.optString("key") != key) out.put(cur)
                 }
-                writeFileText("library.json", out.toString(2))
+                writeFileText("library.json", out.toString())
                 out.toString()
             }
             "getUpdates" -> readFileText("updates.json", "[]")
@@ -467,9 +467,9 @@ class KomaNativePlugin : Plugin() {
             }.toString(2)
             "importBackupJson" -> {
                 val raw = JSONObject(args.getString("json"))
-                raw.optJSONArray("categories")?.let { writeFileText("categories.json", it.toString(2)) }
-                raw.optJSONArray("library")?.let { writeFileText("library.json", it.toString(2)) }
-                raw.optJSONArray("history")?.let { writeFileText("history.json", it.toString(2)) }
+                raw.optJSONArray("categories")?.let { writeFileText("categories.json", it.toString()) }
+                raw.optJSONArray("library")?.let { writeFileText("library.json", it.toString()) }
+                raw.optJSONArray("history")?.let { writeFileText("history.json", it.toString()) }
                 raw.optJSONObject("settings")?.let { writeFileText("settings.json", it.toString(2)) }
                 raw.optJSONObject("stats")?.let { writeFileText("stats.json", it.toString(2)) }
                 "true"
@@ -1144,7 +1144,8 @@ class KomaNativePlugin : Plugin() {
               "syncServerUrl":"",
               "syncUsername":"",
               "syncAuthHash":"",
-              "syncKeyJwk":""
+              "syncKeyJwk":"",
+              "deletedLibraryKeys":{}
             }
         """.trimIndent()
     }

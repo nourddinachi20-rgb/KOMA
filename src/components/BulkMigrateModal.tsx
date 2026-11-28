@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -34,6 +34,14 @@ function normalizeMatchTitle(raw: string): string {
     .replace(/[^a-z0-9\u0600-\u06ff\u3040-\u30ff\u4e00-\u9fff]+/g, '');
 }
 
+function tokenizeTitle(raw: string): string[] {
+  return raw
+    .replace(/\[[^\]]*\]|\([^)]*\)/g, ' ')
+    .toLowerCase()
+    .split(/[^a-z0-9\u0600-\u06ff\u3040-\u30ff\u4e00-\u9fff]+/)
+    .filter((w) => w.length >= 2);
+}
+
 function pickBestCandidate(entry: LibraryEntry, candidates: Manga[]): Manga | null {
   if (candidates.length === 0) return null;
   const targets = [entry.manga.title, ...(entry.manga.altTitles ?? [])]
@@ -45,13 +53,36 @@ function pickBestCandidate(entry: LibraryEntry, candidates: Manga[]): Manga | nu
     if (exact) return exact;
   }
   for (const t of targets) {
+    if (t.length < 4) continue;
     const partial = candidates.find((c) => {
       const cn = normalizeMatchTitle(c.title);
-      return cn.includes(t) || t.includes(cn);
+      return cn.length >= 4 && (cn.includes(t) || t.includes(cn));
     });
     if (partial) return partial;
   }
-  return candidates[0];
+
+  // Fallback word-overlap scoring (prevents unrelated trending hits on non-filtering sources)
+  const targetTokens = Array.from(
+    new Set([entry.manga.title, ...(entry.manga.altTitles ?? [])].flatMap(tokenizeTitle)),
+  );
+  if (targetTokens.length === 0) return null;
+
+  let bestScore = 0;
+  let bestCandidate: Manga | null = null;
+  for (const c of candidates) {
+    const candTokens = new Set(tokenizeTitle(c.title));
+    if (candTokens.size === 0) continue;
+    let hits = 0;
+    for (const w of targetTokens) {
+      if (candTokens.has(w)) hits++;
+    }
+    const score = hits / Math.max(1, Math.min(targetTokens.length, candTokens.size));
+    if (score >= 0.5 && score > bestScore) {
+      bestScore = score;
+      bestCandidate = c;
+    }
+  }
+  return bestCandidate;
 }
 
 function buildSearchQueries(entry: LibraryEntry): string[] {
@@ -60,7 +91,11 @@ function buildSearchQueries(entry: LibraryEntry): string[] {
     .replace(/\s*[:\-–—]\s*(official|colored|digital).*$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
-  const rawList = [entry.manga.title.trim(), cleaned, ...(entry.manga.altTitles ?? []).map((s) => s.trim())];
+  const rawList = [
+    entry.manga.title.trim(),
+    cleaned,
+    ...(entry.manga.altTitles ?? []).map((s) => s.trim()),
+  ];
   const unique: string[] = [];
   for (const q of rawList) {
     if (q && !unique.some((u) => u.toLowerCase() === q.toLowerCase())) {
@@ -72,31 +107,43 @@ function buildSearchQueries(entry: LibraryEntry): string[] {
 }
 
 export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalProps) {
-  const { engineStatus, sources, settings, migrateLibraryBatch, notify } = useAppStore();
+  const { engineStatus, sources, settings, migrateLibraryBatch, syncPushNow, syncSession, notify } =
+    useAppStore();
 
+  const [sessionEntries, setSessionEntries] = useState<LibraryEntry[]>([]);
   const [targetMode, setTargetMode] = useState<string>('AUTO');
   const [fallbackToAuto, setFallbackToAuto] = useState<boolean>(true);
   const [running, setRunning] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
   const [rowStatus, setRowStatus] = useState<Record<string, RowProgress>>({});
   const [manualEntry, setManualEntry] = useState<LibraryEntry | null>(null);
+
   const stopRef = useRef(false);
   const pendingCommitRef = useRef<Array<{ oldKey: string; newManga: Manga }>>([]);
-  const flushingRef = useRef<Promise<void> | null>(null);
+  const flushChainRef = useRef<Promise<void>>(Promise.resolve());
 
-  const flushBatch = async (force = false) => {
-    if (pendingCommitRef.current.length === 0) return;
-    if (!force && pendingCommitRef.current.length < 10) return;
-    while (flushingRef.current) {
-      await flushingRef.current;
+  // Snapshot entries cleanly on open so mid-run commits never shift visible rows/indices
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      setSessionEntries(entries);
+      setRowStatus({});
+      setDoneCount(0);
     }
-    const batch = pendingCommitRef.current.splice(0, pendingCommitRef.current.length);
-    if (batch.length === 0) return;
-    const p = migrateLibraryBatch(batch).finally(() => {
-      flushingRef.current = null;
+    wasOpenRef.current = open;
+  }, [open, entries]);
+
+  const flushBatch = (force = false): Promise<void> => {
+    if (pendingCommitRef.current.length === 0) return flushChainRef.current;
+    if (!force && pendingCommitRef.current.length < 10) return flushChainRef.current;
+    const next = flushChainRef.current.then(async () => {
+      const batch = pendingCommitRef.current.splice(0, pendingCommitRef.current.length);
+      if (batch.length > 0) {
+        await migrateLibraryBatch(batch);
+      }
     });
-    flushingRef.current = p;
-    await p;
+    flushChainRef.current = next.catch(() => {});
+    return next;
   };
 
   // Only list healthy non-broken sources so migrated titles never end up broken again
@@ -117,12 +164,12 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
     const pinned = settings.pinnedSources.filter((name) =>
       sortedSources.some((s) => s.name === name),
     );
-    const extra = sortedSources
-      .filter((s) => s.locale === 'en' || s.locale === '')
-      .slice(0, 6)
+    const sameLang = sortedSources
+      .filter((s) => settings.preferredLanguages.includes(s.locale) || s.locale === '')
       .map((s) => s.name);
-    return Array.from(new Set([...pinned, ...extra])).slice(0, 6);
-  }, [sortedSources, settings.pinnedSources]);
+    const rest = sortedSources.map((s) => s.name);
+    return Array.from(new Set([...pinned, ...sameLang, ...rest])).slice(0, 14);
+  }, [sortedSources, settings.pinnedSources, settings.preferredLanguages]);
 
   const searchOneSource = async (
     entry: LibraryEntry,
@@ -136,8 +183,30 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
       const best = pickBestCandidate(entry, items);
       if (best) {
         const full = await fetchMangaDetails(engineUrl, best).catch(() => null);
-        if (full) return full;
-        return best;
+        if (full) {
+          return {
+            ...best,
+            ...full,
+            coverUrl:
+              full.coverUrl ||
+              best.coverUrl ||
+              entry.manga.coverUrl ||
+              entry.manga.largeCoverUrl ||
+              null,
+            largeCoverUrl:
+              full.largeCoverUrl ||
+              best.largeCoverUrl ||
+              entry.manga.largeCoverUrl ||
+              entry.manga.coverUrl ||
+              null,
+          };
+        }
+        return {
+          ...best,
+          coverUrl: best.coverUrl || entry.manga.coverUrl || entry.manga.largeCoverUrl || null,
+          largeCoverUrl:
+            best.largeCoverUrl || entry.manga.largeCoverUrl || entry.manga.coverUrl || null,
+        };
       }
     }
     return null;
@@ -172,7 +241,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
         }
       }
 
-      if (matchedFull) {
+      if (matchedFull && !stopRef.current) {
         pendingCommitRef.current.push({ oldKey: entry.key, newManga: matchedFull });
         await flushBatch(false);
         const srcLabel =
@@ -201,13 +270,27 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
     }
   };
 
+  const pushIfSignedIn = () => {
+    if (syncSession) {
+      void syncPushNow(true).catch(() => {});
+    }
+  };
+
+  const handleCloseSafely = async () => {
+    stopRef.current = true;
+    await flushBatch(true);
+    pushIfSignedIn();
+    setRunning(false);
+    onClose();
+  };
+
   const handleStartAll = async () => {
-    if (running || !engineStatus.ready || !engineStatus.url || entries.length === 0) return;
+    if (running || !engineStatus.ready || !engineStatus.url || sessionEntries.length === 0) return;
     stopRef.current = false;
     setRunning(true);
     setDoneCount(0);
 
-    const queue = entries.filter((e) => rowStatus[e.key]?.status !== 'done');
+    const queue = sessionEntries.filter((e) => rowStatus[e.key]?.status !== 'done');
     const engineUrl = engineStatus.url;
     let migratedCount = 0;
     let failedCount = 0;
@@ -227,6 +310,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
 
     await Promise.all(workers);
     await flushBatch(true);
+    pushIfSignedIn();
 
     setRunning(false);
     if (!stopRef.current) {
@@ -237,7 +321,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
     }
   };
 
-  const pendingEntries = entries.filter((e) => rowStatus[e.key]?.status !== 'done');
+  const pendingEntries = sessionEntries.filter((e) => rowStatus[e.key]?.status !== 'done');
 
   return (
     <>
@@ -248,7 +332,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => {
-              if (!running) onClose();
+              if (!running) void handleCloseSafely();
             }}
             className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4"
           >
@@ -263,14 +347,14 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
                 <div>
                   <h2 className="text-base font-bold text-white">Migrate Broken Sources</h2>
                   <p className="text-xs text-zinc-400">
-                    {entries.length} manga · {running ? `${doneCount} / ${entries.length} processed` : '4x parallel search with progress kept'}
+                    {sessionEntries.length} manga ·{' '}
+                    {running
+                      ? `${doneCount} / ${sessionEntries.length} processed`
+                      : 'Commits atomically across working sources'}
                   </p>
                 </div>
                 <button
-                  onClick={() => {
-                    stopRef.current = true;
-                    onClose();
-                  }}
+                  onClick={() => void handleCloseSafely()}
                   className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-zinc-400 hover:text-white cursor-pointer"
                 >
                   <X className="h-4 w-4" />
@@ -309,7 +393,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
               </div>
 
               <div className="flex-1 space-y-2 overflow-y-auto p-5">
-                {entries.map((entry) => {
+                {sessionEntries.map((entry) => {
                   const st = rowStatus[entry.key];
                   return (
                     <div
@@ -332,14 +416,14 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
 
                       <div className="flex shrink-0 items-center gap-2">
                         {st?.status === 'searching' && (
-                          <span className="flex items-center gap-1 text-[11px] text-zinc-300">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-zinc-300">
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             <span>Searching</span>
                           </span>
                         )}
                         {st?.status === 'done' && (
-                          <span className="flex items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-0.5 text-[11px] text-emerald-300">
-                            <CheckCircle2 className="h-3 w-3" />
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[11px] leading-none text-emerald-300">
+                            <CheckCircle2 className="h-3 w-3 shrink-0" />
                             <span>{st.message}</span>
                           </span>
                         )}
@@ -347,9 +431,9 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
                           <button
                             type="button"
                             onClick={() => setManualEntry(entry)}
-                            className="flex items-center gap-1 rounded-full border border-white/20 bg-white/[0.08] px-2.5 py-1 text-[11px] text-white hover:bg-white/15 cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/[0.08] px-2.5 py-1.5 text-[11px] leading-none text-white hover:bg-white/15 cursor-pointer"
                           >
-                            <Search className="h-3 w-3" />
+                            <Search className="h-3 w-3 shrink-0" />
                             <span>Pick</span>
                           </button>
                         )}
@@ -357,9 +441,9 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
                           <button
                             type="button"
                             onClick={() => setManualEntry(entry)}
-                            className="flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-zinc-400 hover:border-white/25 hover:text-white cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1.5 text-[11px] leading-none text-zinc-400 hover:border-white/25 hover:text-white cursor-pointer"
                           >
-                            <AlertTriangle className="h-3 w-3 text-rose-400" />
+                            <AlertTriangle className="h-3 w-3 shrink-0 text-rose-400" />
                             <span>Fix</span>
                           </button>
                         )}
@@ -372,12 +456,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
               <div className="flex items-center justify-between gap-2 border-t border-white/[0.08] bg-black/50 px-5 py-3.5">
                 <button
                   type="button"
-                  onClick={async () => {
-                    stopRef.current = true;
-                    await flushBatch(true);
-                    setRunning(false);
-                    onClose();
-                  }}
+                  onClick={() => void handleCloseSafely()}
                   className="inline-flex items-center justify-center rounded-full border border-white/15 px-4 py-2 text-xs leading-none text-zinc-300 hover:text-white cursor-pointer"
                 >
                   {running ? 'Stop & Save' : 'Close'}
@@ -387,7 +466,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
                   type="button"
                   disabled={running || pendingEntries.length === 0 || !engineStatus.ready}
                   onClick={() => void handleStartAll()}
-                  className="accent-bg flex items-center gap-2 rounded-full px-5 py-2 text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                  className="accent-bg inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-xs font-semibold leading-none disabled:opacity-40 cursor-pointer"
                 >
                   {running ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -396,7 +475,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
                   )}
                   <span>
                     {running
-                      ? `Migrating ${doneCount}/${entries.length}...`
+                      ? `Migrating ${doneCount}/${sessionEntries.length}...`
                       : `Migrate All (${pendingEntries.length})`}
                   </span>
                 </button>
@@ -411,10 +490,16 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
           open={Boolean(manualEntry)}
           manga={manualEntry.manga}
           onClose={() => {
-            setRowStatus((prev) => ({
-              ...prev,
-              [manualEntry.key]: { status: 'done', message: 'Migrated' },
-            }));
+            const stillPresent = useAppStore
+              .getState()
+              .library.some((x) => x.key === manualEntry.key);
+            if (!stillPresent) {
+              setRowStatus((prev) => ({
+                ...prev,
+                [manualEntry.key]: { status: 'done', message: 'Migrated' },
+              }));
+              pushIfSignedIn();
+            }
             setManualEntry(null);
           }}
         />

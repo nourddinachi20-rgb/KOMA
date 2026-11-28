@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.0.7';
+export const APP_VERSION = '1.0.8';
 
 export interface ChangelogSection {
   title: string;
@@ -6,9 +6,9 @@ export interface ChangelogSection {
   items: string[];
 }
 
-export const DEFAULT_WHATS_NEW_NOTES = `### Improvements
-- **Full-Page Welcome & Animated Logo:** Minimal black full-screen Sign In / Create Account / Guest welcome page with smooth geometric KOMA logo animation.
-- **Instant Background Startup:** Engine startup and feed warming now run silently behind the welcome screen so signing in or continuing as guest enters KOMA immediately.`;
+export const DEFAULT_WHATS_NEW_NOTES = `### Fixes
+- **Bulk Migration Persistence & Sync:** Added deletion tombstones so migrated broken entries never resurrect from cloud sync on reopen, plus serialized atomic batch commits and expanded fallback search across working sources.
+- **Cover Preservation During Migration:** Automatically retains existing manga covers if a destination source returns an empty cover URL.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

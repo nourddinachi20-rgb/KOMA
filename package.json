@@ -1,6 +1,6 @@
 {
   "name": "koma-manga",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "private": true,
   "description": "KOMA — Futuristic OLED Manga Sanctuary powered by bundled verified sources",
   "main": "dist-electron/main.js",
