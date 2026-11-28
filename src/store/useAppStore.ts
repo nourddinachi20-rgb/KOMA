@@ -934,7 +934,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ checkingUpdates: true });
     try {
       const res = await window.noctis.checkUpdates();
-      set({ updates: res.updates, library: res.library });
+      await enqueueMigrationCommit(async () => {
+        const tombstones = get().settings.deletedLibraryKeys ?? {};
+        const cleanLib = res.library.filter((entry) => {
+          const deletedAt = tombstones[entry.key];
+          if (!deletedAt) return true;
+          return deletedAt < (entry.lastReadAt ?? entry.addedAt ?? 0);
+        });
+        set({ updates: res.updates, library: cleanLib });
+      });
       if (res.newCount > 0) {
         get().notify(`${res.newCount} new chapter${res.newCount === 1 ? '' : 's'} found`, 'success');
       } else {

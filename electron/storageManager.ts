@@ -236,17 +236,24 @@ class StorageManager {
     library: LibraryEntry[];
     newCount: number;
   }> {
-    const lib = this.getLibrary();
-    const existingUpdates = this.getUpdates();
-    const seenUpdateIds = new Set(existingUpdates.map((u) => u.id));
-    const newlyFound: UpdateEntry[] = [];
-
-    const targets = lib.filter((e) => {
+    const snapshotLib = this.getLibrary();
+    const targets = snapshotLib.filter((e) => {
       const src = String(e.manga.source ?? '');
       return src && src !== 'LOCAL';
     });
 
-    const batchSize = 4;
+    const checkedMap = new Map<
+      string,
+      {
+        manga: Record<string, unknown>;
+        knownChapterIds: string[];
+        totalChapters: number;
+        unreadCount: number;
+        updates: UpdateEntry[];
+      }
+    >();
+
+    const batchSize = 6;
     for (let i = 0; i < targets.length; i += batchSize) {
       const slice = targets.slice(i, i + batchSize);
       await Promise.all(
@@ -257,42 +264,46 @@ class StorageManager {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ manga: entry.manga }),
+              signal: AbortSignal.timeout(15_000),
             });
             if (!res.ok) return;
             const data = (await res.json()) as { manga: Record<string, unknown> };
             const fullManga = data.manga;
+            if (!fullManga.coverUrl && entry.manga.coverUrl) fullManga.coverUrl = entry.manga.coverUrl;
+            if (!fullManga.largeCoverUrl && entry.manga.largeCoverUrl) {
+              fullManga.largeCoverUrl = entry.manga.largeCoverUrl;
+            }
             const chapters = Array.isArray(fullManga.chapters)
               ? (fullManga.chapters as Array<Record<string, unknown>>)
               : [];
             const chapterIds = chapters.map((c) => String(c.id));
             const prevKnown = new Set(entry.knownChapterIds ?? []);
             const readSet = new Set(entry.readChapterIds ?? []);
+            const perMangaUpdates: UpdateEntry[] = [];
 
             if (prevKnown.size > 0) {
               for (const ch of chapters) {
                 const chId = String(ch.id);
                 if (!prevKnown.has(chId) && !readSet.has(chId)) {
-                  const updId = `${entry.key}::${chId}`;
-                  if (!seenUpdateIds.has(updId)) {
-                    seenUpdateIds.add(updId);
-                    newlyFound.push({
-                      id: updId,
-                      mangaKey: entry.key,
-                      manga: fullManga,
-                      chapter: ch,
-                      discoveredAt: Date.now(),
-                    });
-                  }
+                  perMangaUpdates.push({
+                    id: `${entry.key}::${chId}`,
+                    mangaKey: entry.key,
+                    manga: fullManga,
+                    chapter: ch,
+                    discoveredAt: Date.now(),
+                  });
                 }
               }
             }
 
             const unreadCount = chapters.filter((c) => !readSet.has(String(c.id))).length;
-            entry.manga = fullManga;
-            entry.knownChapterIds = chapterIds;
-            entry.totalChapters = chapters.length;
-            entry.unreadCount = prevKnown.size > 0 ? unreadCount : entry.unreadCount ?? 0;
-            entry.lastCheckedAt = Date.now();
+            checkedMap.set(entry.key, {
+              manga: fullManga,
+              knownChapterIds: chapterIds,
+              totalChapters: chapters.length,
+              unreadCount: prevKnown.size > 0 ? unreadCount : entry.unreadCount ?? 0,
+              updates: perMangaUpdates,
+            });
           } catch {
             // Skip failing source quietly
           }
@@ -300,10 +311,33 @@ class StorageManager {
       );
     }
 
-    this.writeJson('library.json', lib);
+    // Re-read CURRENT library so migrations made while checking updates are never overwritten
+    const currentLib = this.getLibrary();
+    const existingUpdates = this.getUpdates();
+    const seenUpdateIds = new Set(existingUpdates.map((u) => u.id));
+    const newlyFound: UpdateEntry[] = [];
+    const now = Date.now();
+
+    for (const entry of currentLib) {
+      const res = checkedMap.get(entry.key);
+      if (!res) continue;
+      entry.manga = res.manga;
+      entry.knownChapterIds = res.knownChapterIds;
+      entry.totalChapters = res.totalChapters;
+      entry.unreadCount = res.unreadCount;
+      entry.lastCheckedAt = now;
+      for (const u of res.updates) {
+        if (!seenUpdateIds.has(u.id)) {
+          seenUpdateIds.add(u.id);
+          newlyFound.push(u);
+        }
+      }
+    }
+
+    this.writeJson('library.json', currentLib);
     const mergedUpdates = [...newlyFound, ...existingUpdates].slice(0, 300);
     this.writeJson('updates.json', mergedUpdates);
-    return { updates: mergedUpdates, library: lib, newCount: newlyFound.length };
+    return { updates: mergedUpdates, library: currentLib, newCount: newlyFound.length };
   }
 
   getStats(): ReadingStats {

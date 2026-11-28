@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.0.8';
+const DEFAULT_VERSION = '1.0.9';
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/latest/download/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -19,6 +19,14 @@ interface GitHubRelease {
 }
 
 const FALLBACK_RELEASES: GitHubRelease[] = [
+  {
+    tag_name: 'v1.0.9',
+    name: 'KOMA v1.0.9',
+    published_at: '2026-11-28T00:35:00Z',
+    body: `### Fixes
+- **Library Update Check No Longer Reverts Migrations:** Rewrote \`checkLibraryUpdates\` on both Android and Windows to check 6 titles concurrently with a 15s timeout and re-read current \`library.json\` under lock before saving — stopping stale background chapter checks from overwriting migrated manga back to old broken sources.
+- **Website Cache-Busting:** Appends content build tags to bundled website assets so release history renders immediately without stale browser cache.`,
+  },
   {
     tag_name: 'v1.0.8',
     name: 'KOMA v1.0.8',

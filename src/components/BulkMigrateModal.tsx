@@ -91,9 +91,14 @@ function buildSearchQueries(entry: LibraryEntry): string[] {
     .replace(/\s*[:\-–—]\s*(official|colored|digital).*$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
+  const baseSegment = cleaned.split(/[:\-–—/|,!?]/)[0]?.trim() || '';
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  const shortCore = words.length >= 4 ? words.slice(0, 3).join(' ') : '';
   const rawList = [
     entry.manga.title.trim(),
     cleaned,
+    baseSegment,
+    shortCore,
     ...(entry.manga.altTitles ?? []).map((s) => s.trim()),
   ];
   const unique: string[] = [];
@@ -101,7 +106,7 @@ function buildSearchQueries(entry: LibraryEntry): string[] {
     if (q && !unique.some((u) => u.toLowerCase() === q.toLowerCase())) {
       unique.push(q);
     }
-    if (unique.length >= 3) break;
+    if (unique.length >= 4) break;
   }
   return unique;
 }

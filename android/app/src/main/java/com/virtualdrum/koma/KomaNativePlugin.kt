@@ -19,7 +19,9 @@ import com.getcapacitor.annotation.CapacitorPlugin
 import com.noctis.engine.AndroidKomaEngine
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -660,81 +662,133 @@ class KomaNativePlugin : Plugin() {
         }
     }
 
-    private fun checkLibraryUpdatesRpc(): String {
-        val lib = JSONArray(readFileText("library.json", "[]"))
-        val updates = JSONArray(readFileText("updates.json", "[]"))
+    private suspend fun checkLibraryUpdatesRpc(): String {
+        val snapshotLib = storageMutex.withLock { JSONArray(readFileText("library.json", "[]")) }
+        val existingUpdatesSnap = storageMutex.withLock { JSONArray(readFileText("updates.json", "[]")) }
         if (!AndroidKomaEngine.ready) {
-            return JSONObject().put("updates", updates).put("library", lib).put("newCount", 0).toString()
+            return JSONObject().put("updates", existingUpdatesSnap).put("library", snapshotLib).put("newCount", 0).toString()
         }
+
         val engineUrl = "http://127.0.0.1:${AndroidKomaEngine.port}"
-        var newCount = 0
-        val newUpdates = mutableListOf<JSONObject>()
+        val fastHttp = http.newBuilder()
+            .callTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(14, TimeUnit.SECONDS)
+            .build()
 
-        for (i in 0 until lib.length()) {
-            val entry = lib.getJSONObject(i)
-            val manga = entry.getJSONObject("manga")
-            val source = manga.optString("source")
-            if (source == "LOCAL") continue
-            val mKey = entry.optString("key")
-            runCatching {
-                val req = Request.Builder()
-                    .url("$engineUrl/api/sources/${Uri.encode(source)}/details")
-                    .post(JSONObject().put("manga", manga).toString().toRequestBody("application/json".toMediaType()))
-                    .build()
-                http.newCall(req).execute().use { res ->
-                    if (!res.isSuccessful) return@runCatching
-                    val detailed = JSONObject(res.body?.string() ?: "{}").optJSONObject("manga") ?: return@runCatching
-                    val chapters = detailed.optJSONArray("chapters") ?: JSONArray()
-                    val knownArr = entry.optJSONArray("knownChapterIds") ?: JSONArray()
-                    val knownSet = mutableSetOf<String>()
-                    for (k in 0 until knownArr.length()) knownSet.add(knownArr.getString(k))
-                    val readArr = entry.optJSONArray("readChapterIds") ?: JSONArray()
-                    val readSet = mutableSetOf<String>()
-                    for (r in 0 until readArr.length()) readSet.add(readArr.getString(r))
+        val targets = mutableListOf<JSONObject>()
+        for (i in 0 until snapshotLib.length()) {
+            val e = snapshotLib.getJSONObject(i)
+            val src = e.optJSONObject("manga")?.optString("source") ?: ""
+            if (src.isNotBlank() && src != "LOCAL") targets.add(e)
+        }
 
-                    if (knownSet.isNotEmpty()) {
-                        for (c in 0 until chapters.length()) {
-                            val ch = chapters.getJSONObject(c)
-                            val chId = ch.optString("id")
-                            if (chId !in knownSet) {
-                                newCount++
-                                newUpdates.add(JSONObject().apply {
-                                    put("id", "$mKey::$chId")
-                                    put("mangaKey", mKey)
-                                    put("manga", detailed)
-                                    put("chapter", ch)
-                                    put("discoveredAt", System.currentTimeMillis())
-                                })
+        data class CheckedResult(
+            val key: String,
+            val detailedManga: JSONObject,
+            val nextKnown: JSONArray,
+            val totalChapters: Int,
+            val unreadCount: Int,
+            val updatesForManga: List<JSONObject>,
+        )
+
+        val checkedMap = mutableMapOf<String, CheckedResult>()
+        val sem = Semaphore(6)
+        val results = coroutineScope {
+            targets.map { entry ->
+                async<CheckedResult?>(Dispatchers.IO) {
+                    sem.withPermit {
+                        runCatching {
+                            val manga = entry.getJSONObject("manga")
+                            val source = manga.optString("source")
+                            val mKey = entry.optString("key")
+                            val req = Request.Builder()
+                                .url("$engineUrl/api/sources/${Uri.encode(source)}/details")
+                                .post(JSONObject().put("manga", manga).toString().toRequestBody("application/json".toMediaType()))
+                                .build()
+                            fastHttp.newCall(req).execute().use { res ->
+                                if (!res.isSuccessful) return@runCatching null
+                                val detailed = JSONObject(res.body?.string() ?: "{}").optJSONObject("manga")
+                                    ?: return@runCatching null
+
+                                // Preserve cover URLs if upstream details omits them
+                                if (detailed.optString("coverUrl").isBlank() && manga.optString("coverUrl").isNotBlank()) {
+                                    detailed.put("coverUrl", manga.optString("coverUrl"))
+                                }
+                                if (detailed.optString("largeCoverUrl").isBlank() && manga.optString("largeCoverUrl").isNotBlank()) {
+                                    detailed.put("largeCoverUrl", manga.optString("largeCoverUrl"))
+                                }
+
+                                val chapters = detailed.optJSONArray("chapters") ?: JSONArray()
+                                val knownArr = entry.optJSONArray("knownChapterIds") ?: JSONArray()
+                                val knownSet = mutableSetOf<String>()
+                                for (k in 0 until knownArr.length()) knownSet.add(knownArr.getString(k))
+                                val readArr = entry.optJSONArray("readChapterIds") ?: JSONArray()
+                                val readSet = mutableSetOf<String>()
+                                for (r in 0 until readArr.length()) readSet.add(readArr.getString(r))
+
+                                val perMangaUpdates = mutableListOf<JSONObject>()
+                                if (knownSet.isNotEmpty()) {
+                                    for (c in 0 until chapters.length()) {
+                                        val ch = chapters.getJSONObject(c)
+                                        val chId = ch.optString("id")
+                                        if (chId !in knownSet && chId !in readSet) {
+                                            perMangaUpdates.add(JSONObject().apply {
+                                                put("id", "$mKey::$chId")
+                                                put("mangaKey", mKey)
+                                                put("manga", detailed)
+                                                put("chapter", ch)
+                                                put("discoveredAt", System.currentTimeMillis())
+                                            })
+                                        }
+                                    }
+                                }
+                                val nextKnown = JSONArray()
+                                var unread = 0
+                                for (c in 0 until chapters.length()) {
+                                    val cid = chapters.getJSONObject(c).optString("id")
+                                    nextKnown.put(cid)
+                                    if (cid !in readSet) unread++
+                                }
+                                CheckedResult(mKey, detailed, nextKnown, chapters.length(), unread, perMangaUpdates)
                             }
-                        }
+                        }.getOrNull()
                     }
-                    val nextKnown = JSONArray()
-                    var unread = 0
-                    for (c in 0 until chapters.length()) {
-                        val cid = chapters.getJSONObject(c).optString("id")
-                        nextKnown.put(cid)
-                        if (cid !in readSet) unread++
-                    }
-                    entry.put("manga", detailed)
-                    entry.put("knownChapterIds", nextKnown)
-                    entry.put("totalChapters", chapters.length())
-                    entry.put("unreadCount", unread)
-                    entry.put("lastCheckedAt", System.currentTimeMillis())
                 }
-            }
+            }.awaitAll().filterNotNull()
         }
+        for (r in results) checkedMap[r.key] = r
 
-        val combined = JSONArray()
-        newUpdates.forEach { combined.put(it) }
-        val existingIds = newUpdates.map { it.optString("id") }.toSet()
-        for (i in 0 until updates.length()) {
-            if (combined.length() >= 150) break
-            val cur = updates.getJSONObject(i)
-            if (cur.optString("id") !in existingIds) combined.put(cur)
+        // Re-read CURRENT library under storageMutex so migrations performed while checking updates are NEVER overwritten
+        return storageMutex.withLock {
+            val currentLib = JSONArray(readFileText("library.json", "[]"))
+            val currentUpdates = JSONArray(readFileText("updates.json", "[]"))
+            val newUpdates = mutableListOf<JSONObject>()
+            val now = System.currentTimeMillis()
+
+            for (i in 0 until currentLib.length()) {
+                val entry = currentLib.getJSONObject(i)
+                val key = entry.optString("key")
+                val checked = checkedMap[key] ?: continue
+                entry.put("manga", checked.detailedManga)
+                entry.put("knownChapterIds", checked.nextKnown)
+                entry.put("totalChapters", checked.totalChapters)
+                entry.put("unreadCount", checked.unreadCount)
+                entry.put("lastCheckedAt", now)
+                newUpdates.addAll(checked.updatesForManga)
+            }
+
+            val combined = JSONArray()
+            newUpdates.forEach { combined.put(it) }
+            val existingIds = newUpdates.map { it.optString("id") }.toSet()
+            for (i in 0 until currentUpdates.length()) {
+                if (combined.length() >= 150) break
+                val cur = currentUpdates.getJSONObject(i)
+                if (cur.optString("id") !in existingIds) combined.put(cur)
+            }
+            writeFileText("library.json", currentLib.toString())
+            writeFileText("updates.json", combined.toString())
+            JSONObject().put("updates", combined).put("library", currentLib).put("newCount", newUpdates.size).toString()
         }
-        writeFileText("library.json", lib.toString(2))
-        writeFileText("updates.json", combined.toString(2))
-        return JSONObject().put("updates", combined).put("library", lib).put("newCount", newCount).toString()
     }
 
     private fun downloadChapterRpc(payload: JSONObject): JSONObject {

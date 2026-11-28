@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.0.8';
+export const APP_VERSION = '1.0.9';
 
 export interface ChangelogSection {
   title: string;
@@ -7,8 +7,8 @@ export interface ChangelogSection {
 }
 
 export const DEFAULT_WHATS_NEW_NOTES = `### Fixes
-- **Bulk Migration Persistence & Sync:** Added deletion tombstones so migrated broken entries never resurrect from cloud sync on reopen, plus serialized atomic batch commits and expanded fallback search across working sources.
-- **Cover Preservation During Migration:** Automatically retains existing manga covers if a destination source returns an empty cover URL.`;
+- **Library Update Overwrite Fix:** \`checkLibraryUpdates\` now checks updates concurrently in batches of 6 (15s timeout) and re-reads current \`library.json\` under lock before saving, so background chapter checks never revert migrated manga back to old broken sources.
+- **More Reliable Query Matching:** Added core-title splitting for better migration coverage across working sources.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;
