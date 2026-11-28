@@ -223,7 +223,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 const ALLOWED_LOCALES = new Set(['en', 'fr', 'ar', '']);
-const HOME_CACHE_VERSION = 2;
+const HOME_CACHE_VERSION = 3;
 const HOME_NOISY_SOURCES = new Set(['MANGAPILL']);
 const inFlightDetails = new Map<string, Promise<Manga | null>>();
 const inFlightPages = new Map<string, Promise<string[]>>();
@@ -405,7 +405,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (failed) next[key] = true;
     else delete next[key];
     set({ failedSourceKeys: next });
-    void get().updateSettings({ persistedFailedKeys: next });
   },
   syncSession: null,
   syncLastAt: 0,
@@ -587,13 +586,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         detailsCache: { ...s.detailsCache, [key]: full },
         failedSourceKeys: nextFailed,
       }));
-      void get().updateSettings({ persistedFailedKeys: nextFailed });
       return full;
     })()
       .catch(() => {
-        const nextFailed = { ...get().failedSourceKeys, [key]: true };
-        set({ failedSourceKeys: nextFailed });
-        void get().updateSettings({ persistedFailedKeys: nextFailed });
+        if (!manga.id.startsWith('mihon-')) {
+          set((s) => ({ failedSourceKeys: { ...s.failedSourceKeys, [key]: true } }));
+        }
         return null;
       })
       .finally(() => {
@@ -661,33 +659,31 @@ export const useAppStore = create<AppState>((set, get) => ({
             .map((s) => s.name)
     ).slice(0, 5);
 
-    const rowTitles = [
-      'Trending Worldwide',
-      'Top Manga Hits',
-      'Most Read Series',
-      'Top Action & Manhwa',
-      'Fan Favorites',
-    ];
-
     if (get().homeRows.length === 0) {
       set({
-        homeRows: activeSources.map((src, idx) => ({
-          title: rowTitles[idx] ?? 'Top Popular',
-          subtitle: sources.find((s) => s.name === src)?.title ?? src,
-          source: src,
-          items: [],
-          loading: true,
-        })),
+        homeRows: activeSources.map((src) => {
+          const srcTitle = sources.find((s) => s.name === src)?.title ?? src;
+          return {
+            title: srcTitle,
+            subtitle: srcTitle,
+            source: src,
+            items: [],
+            loading: true,
+          };
+        }),
       });
     }
 
-    const builtRows: ShowcaseRow[] = activeSources.map((src, idx) => ({
-      title: rowTitles[idx] ?? 'Top Popular',
-      subtitle: sources.find((s) => s.name === src)?.title ?? src,
-      source: src,
-      items: [],
-      loading: true,
-    }));
+    const builtRows: ShowcaseRow[] = activeSources.map((src) => {
+      const srcTitle = sources.find((s) => s.name === src)?.title ?? src;
+      return {
+        title: srcTitle,
+        subtitle: srcTitle,
+        source: src,
+        items: [],
+        loading: true,
+      };
+    });
 
     await Promise.all(
       activeSources.map(async (src, idx) => {
@@ -751,16 +747,34 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     }
 
-    // Enrich top spotlight entries first, then background-enrich remaining hero slides for full synopses
-    for (const m of finalHero.slice(0, 3)) {
-      void get().prefetchMangaDetails(m);
-    }
-    if (finalHero.length > 3) {
-      setTimeout(() => {
-        for (const m of finalHero.slice(3)) {
-          void get().prefetchMangaDetails(m);
+    // Enrich hero items sequentially in pairs so every slide has full description & genres without saturating connections
+    if (finalHero.length > 0 && finalRows.some((r) => r.items.length > 0)) {
+      void (async () => {
+        const enrichedMap = new Map<string, Manga>();
+        for (let i = 0; i < finalHero.length; i += 2) {
+          const chunk = finalHero.slice(i, i + 2);
+          await Promise.all(
+            chunk.map(async (m) => {
+              const det = await get().prefetchMangaDetails(m);
+              if (det) enrichedMap.set(`${m.source}::${m.id}`, det);
+            }),
+          );
+          if (i + 2 < finalHero.length) {
+            await new Promise((r) => setTimeout(r, 250));
+          }
         }
-      }, 900);
+        if (enrichedMap.size > 0) {
+          const updatedHero = finalHero.map((m) => enrichedMap.get(`${m.source}::${m.id}`) ?? m);
+          set({ homeHeroItems: updatedHero });
+          window.noctis.saveHomeCache({
+            version: HOME_CACHE_VERSION,
+            hourEpoch,
+            heroItems: updatedHero,
+            rows: finalRows,
+            savedAt: Date.now(),
+          });
+        }
+      })();
     }
   },
 
@@ -826,7 +840,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       engineStatus,
       appVersion,
       syncSession: restoredSync,
-      failedSourceKeys: { ...(mergedSettings.persistedFailedKeys ?? {}) },
+      failedSourceKeys: {},
       tutorialOpen: needsTutorial,
       showWhatsNew: needsWhatsNew,
       bootStage: engineStatus.ready ? (cacheIsFresh ? 'ready' : 'warming') : 'engine',
@@ -959,7 +973,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const rawSources = await fetchSources(engineStatus.url, false);
       const filtered = rawSources.filter((s) => ALLOWED_LOCALES.has(s.locale));
       set({ sources: filtered });
-      get().notify(`${filtered.length} working sources verified`, 'success');
+      get().notify(`${filtered.length} sources ready`, 'success');
     } finally {
       set({ verifyingSources: false });
     }
@@ -983,7 +997,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
         set({ updates: res.updates, library: cleanLib, failedSourceKeys: nextFailed });
       });
-      void get().updateSettings({ persistedFailedKeys: nextFailed });
 
       const failedCount = (res.failedKeys ?? []).length;
       if (res.newCount > 0 && failedCount > 0) {
@@ -1178,7 +1191,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         library: nextLibrary,
         history: nextHistory,
       });
-      await get().updateSettings({ deletedLibraryKeys: pruneTombstones(nextTombstones) });
+      await get().updateSettings({
+        deletedLibraryKeys: pruneTombstones(nextTombstones),
+        persistedFailedKeys: {},
+      });
       set({ library: nextLibrary, history: nextHistory, failedSourceKeys: nextFailed });
       scheduleAutoSync();
     });
@@ -1485,7 +1501,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         syncKeyJwk: JSON.stringify(creds.keyJwk),
       });
       set({ syncSession: creds, syncLastAt: payload.syncedAt });
-      get().notify(`Account "${creds.username}" created (End-to-End Encrypted)`, 'success');
+      get().notify(`Account "${creds.username}" created`, 'success');
     } finally {
       set({ syncBusy: false });
     }
@@ -1521,7 +1537,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         deletedLibraryKeys: nextTombstones,
       });
       set({ syncSession: creds, syncLastAt: updatedAt || Date.now() });
-      get().notify(`Synced encrypted vault for "${creds.username}"`, 'success');
+      get().notify(`Synced "${creds.username}"`, 'success');
     } finally {
       set({ syncBusy: false });
     }
@@ -1547,7 +1563,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         syncedAt: now,
       });
       set({ syncLastAt: ts });
-      if (!silent) get().notify('Encrypted sync complete', 'success');
+      if (!silent) get().notify('Sync complete', 'success');
     } finally {
       set({ syncBusy: false });
     }

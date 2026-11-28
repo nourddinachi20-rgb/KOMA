@@ -14,6 +14,7 @@ interface MangaCardProps {
   onClick?: () => void;
   onQuickPlay?: () => void;
   compact?: boolean;
+  eager?: boolean;
 }
 
 export const MangaCard = memo(function MangaCard({
@@ -26,6 +27,7 @@ export const MangaCard = memo(function MangaCard({
   onClick,
   onQuickPlay,
   compact = false,
+  eager = true,
 }: MangaCardProps) {
   const {
     engineStatus,
@@ -58,6 +60,7 @@ export const MangaCard = memo(function MangaCard({
   const candidateSrcs = [
     proxiedPrimary,
     proxiedPrimary && proxiedPrimary.includes('/api/image?') ? `${proxiedPrimary}&r=1` : '',
+    proxiedPrimary && proxiedPrimary.includes('/api/image?') ? `${proxiedPrimary}&r=2` : '',
     proxiedSecondary,
     primaryUrl.startsWith('http') ? primaryUrl : '',
   ].filter(Boolean);
@@ -92,7 +95,8 @@ export const MangaCard = memo(function MangaCard({
 
   const handleImgError = () => {
     if (retryCount + 1 < candidateSrcs.length) {
-      const delayMs = 160 * (retryCount + 1);
+      const delays = [600, 1400, 2600, 3500];
+      const delayMs = delays[retryCount] ?? 2000;
       retryTimerRef.current = window.setTimeout(() => {
         setRetryCount((c) => c + 1);
       }, delayMs);
@@ -156,7 +160,7 @@ export const MangaCard = memo(function MangaCard({
           <img
             src={coverSrc}
             alt=""
-            loading="eager"
+            loading={eager ? 'eager' : 'lazy'}
             decoding="async"
             referrerPolicy="no-referrer"
             onLoad={() => setImgLoaded(true)}

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { KomaLogo } from './KomaLogo';
 
 export function WelcomeAuthModal() {
   const {
@@ -90,22 +89,9 @@ export function WelcomeAuthModal() {
           <div className="h-6 shrink-0" />
 
           <div className="mx-auto flex w-full max-w-[340px] flex-col items-center">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, ease }}
-            >
-              <KomaLogo animated className="h-20 w-20" />
-            </motion.div>
-
-            <motion.h1
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.32, ease }}
-              className="mt-5 pl-[0.38em] text-2xl font-black tracking-[0.38em] text-white"
-            >
+            <h1 className="pl-[0.38em] text-3xl font-black tracking-[0.38em] text-white">
               KOMA
-            </motion.h1>
+            </h1>
 
             <motion.form
               initial={{ opacity: 0, y: 12 }}

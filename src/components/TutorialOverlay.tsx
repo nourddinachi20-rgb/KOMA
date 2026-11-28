@@ -29,89 +29,47 @@ interface TourStep {
 
 const TOUR_STEPS: TourStep[] = [
   {
-    id: 'welcome',
-    title: 'Welcome to KOMA',
-    badge: 'MADE BY VIRTUALDRUM',
-    description:
-      'Clean monochrome manga & manhwa reader for Windows Desktop, Android Phones, and Tablets.',
-    highlights: [
-      'Pure #000000 OLED canvas engineered for zero eye strain and instant switching',
-      'Hourly rotating Trending Hero Spotlight with an automatic advance bar',
-      '100% self-contained: your library, history, and downloaded CBZ stay yours',
-    ],
-    targetView: 'home',
-    icon: Sparkles,
-  },
-  {
     id: 'explore',
-    title: 'All Verified EN / FR / AR Sources & Ctrl+K',
-    badge: 'DISCOVERY & SEARCH',
+    title: 'Sources & Search',
+    badge: 'BROWSE',
     description:
-      'Browse catalogs natively from MangaBall, MangaDex, WeebCentral, MangaRead, LELManga, TeamXNovel, and more — or hit Search (Ctrl+K) to query multiple sources at once.',
+      'Browse catalogs by language or use Ctrl+K / Search to query pinned sources together.',
     highlights: [
-      'Explore infinite-scroll catalogs filtered strictly to working EN, FR & AR extensions',
-      'Built-in Cloudflare challenge solver so protected sources unlock seamlessly',
-      'Click any Related or Recommended card on a manga page to search it in 1 click',
+      'Pin or unpin your favorite sources from the Sources tab',
+      'Open Cloudflare unlock on any gated source directly from Sources',
+      'Tap Related or Recommended titles on a manga page to search across sources',
     ],
     targetView: 'explore',
     icon: Compass,
-    quickActionLabel: 'Try Quick Search (Ctrl+K)',
-  },
-  {
-    id: 'reader',
-    title: 'Pro Adaptive OLED Reader',
-    badge: 'READING EXPERIENCE',
-    description:
-      'KOMA auto-detects Webtoon vs traditional RTL Manga formatting and remembers your preferred mode and fit per series.',
-    highlights: [
-      'Press C (or tap Chapters) to search & jump chapters without exiting the reader',
-      'Pinch-to-zoom (touch) or Ctrl+Scroll (mouse), plus double-tap zoom & drag pan',
-      'OLED True-Black Ink preset, Warm Tint, Auto-Scroll Cruise, and Binge Next chapter',
-    ],
-    targetView: 'home',
-    icon: BookOpen,
+    quickActionLabel: 'Open Search (Ctrl+K)',
   },
   {
     id: 'library',
-    title: 'Smart Library, Shelves & Offline CBZ',
-    badge: 'COLLECTION & STATS',
+    title: 'Library, Shelves & Offline CBZ',
+    badge: 'LIBRARY',
     description:
-      'Organize series into custom shelves, track your reading streak & unread counts, migrate sources while keeping progress, and download chapters to CBZ for offline trips.',
+      'Keep your reading progress, shelves, statistics, and offline CBZ downloads in one place.',
     highlights: [
-      'Sort by Last Read, Most Unread, Title A–Z, or filter Unread Only',
-      'Hover any Library card and click Play to resume your exact page instantly',
-      'Import local .cbz/.zip archives or folders — drag-and-drop supported on Desktop',
+      'Import Kotatsu (.bk/.zip), Mihon/Komikku (.tachibk), KOMA (.json), or local .cbz files',
+      'Use Migrate Source on broken series to keep shelves and chapter progress',
+      'Filter by shelf, unread count, or sort by Last Read / Title',
     ],
     targetView: 'library',
     icon: Library,
   },
   {
-    id: 'offline',
-    title: 'Offline Downloads & Backups',
-    badge: 'READ ANYWHERE',
+    id: 'reader',
+    title: 'Reader & Sync',
+    badge: 'READER',
     description:
-      'Download individual chapters or queue "Download Next 5" on any manga page. Downloaded chapters group cleanly by series for offline reading.',
+      'Reads Webtoon strip, RTL manga, LTR, and double-page spreads with per-series preferences.',
     highlights: [
-      'Right-click any card anywhere in KOMA for instant Quick Actions',
-      'Track read progress automatically — chapters mark read past 85% completion',
-      'Export or restore full .json backups anytime between PC & Android',
-    ],
-    targetView: 'downloads',
-    icon: Download,
-  },
-  {
-    id: 'updates',
-    title: 'In-App Updates & What’s New',
-    badge: 'ALWAYS UP TO DATE',
-    description:
-      'Check for new Windows (.exe) and Android (.apk) versions directly inside Settings from GitHub Releases — KOMA downloads, updates, restarts, and shows what changed.',
-    highlights: [
-      'Optional AniList Token sync & custom Discord Rich Presence inside Settings',
-      '1.5 GB automatic LRU SSD image cache keeps covers & panels lightning fast',
-      'Replay this interactive tour anytime from Settings → Updates & Diagnostics',
+      'Sign in under Settings → Account & Sync to sync shelves, history, and stats across devices',
+      'Auto-marks chapters read past 85% and optionally syncs progress to AniList',
+      'Switch theme (Pure Black / Dark Slate / Light Paper) and language (EN / FR / AR) in Settings',
     ],
     targetView: 'settings',
-    icon: RefreshCw,
+    icon: BookOpen,
   },
 ];
 

@@ -199,12 +199,11 @@ export function CommandPalette() {
             <div className="max-h-[60vh] overflow-y-auto p-4 space-y-5">
               {!query.trim() && remoteGroups.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-center text-zinc-500">
-                  <Sparkles className="mb-2 h-6 w-6 text-zinc-600" />
                   <p className="text-sm text-zinc-400">
-                    Multi-source instant search across {settings.pinnedSources.length} pinned sources
+                    Search across {settings.pinnedSources.length} pinned sources
                   </p>
                   <p className="mt-1 text-xs text-zinc-600">
-                    Type a title and hit Enter to query MangaDex, WeebCentral, MangaBall, MangaKatana, and more simultaneously.
+                    Type a title and press Enter to search all sources.
                   </p>
                 </div>
               )}

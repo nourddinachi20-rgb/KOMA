@@ -31,7 +31,11 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 private val ALLOWED_LOCALES = setOf("en", "fr", "ar", "")
-private val DISABLED_SOURCES = setOf("ASURASCANS", "ASURATOON")
+private val DISABLED_SOURCES = setOf(
+    "ASURASCANS", "ASURATOON", "MANGAPARK", "MANGASEE", "MANGALIFE",
+    "COMICK", "COMICK_FUN", "REAPER_SCANS", "FLAMESCANS", "LUMINOUSSCANS",
+    "MANHUARM", "MANGA_DEMON", "BATO", "MANGAFIRE",
+)
 private val verifiedCacheFile = File(System.getProperty("user.home"), ".koma-verified-sources.json")
 private val verifiedSources: MutableSet<String> = ConcurrentHashMap.newKeySet()
 private val imageWriteCounter = AtomicInteger(0)
@@ -108,12 +112,13 @@ private fun pruneImageCacheIfNeeded() {
 }
 
 private fun loadInitialVerifiedSources() {
-    val raw = if (verifiedCacheFile.exists()) {
+    val bundledRaw = object {}.javaClass.getResourceAsStream("/verified-sources.json")?.bufferedReader()?.use { it.readText() }
+    val cachedRaw = if (verifiedCacheFile.exists()) {
         runCatching { verifiedCacheFile.readText() }.getOrNull()
-    } else {
-        object {}.javaClass.getResourceAsStream("/verified-sources.json")?.bufferedReader()?.use { it.readText() }
-    }
-    if (!raw.isNullOrBlank()) {
+    } else null
+
+    for (raw in listOf(bundledRaw, cachedRaw)) {
+        if (raw.isNullOrBlank()) continue
         runCatching {
             val arr = JSONArray(raw)
             for (i in 0 until arr.length()) {
@@ -125,7 +130,7 @@ private fun loadInitialVerifiedSources() {
             }
         }
     }
-    // Ensure top curated & custom sources are always registered if reachable
+    // Ensure custom sources are always registered
     verifiedSources.addAll(CustomSourceRegistry.defs.keys)
 }
 

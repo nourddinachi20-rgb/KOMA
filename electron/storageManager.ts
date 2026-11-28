@@ -172,6 +172,8 @@ const KNOWN_DEAD_SOURCES = new Set([
   'LUMINOUSSCANS',
   'MANHUARM',
   'MANGA_DEMON',
+  'ASURASCANS',
+  'ASURATOON',
 ]);
 
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.bmp']);
@@ -293,9 +295,10 @@ class StorageManager {
     const liveTargets: LibraryEntry[] = [];
     for (const entry of targets) {
       const src = String(entry.manga.source ?? '');
+      const mId = String(entry.manga.id ?? '');
       if (KNOWN_DEAD_SOURCES.has(src) || (verifiedSet.size > 0 && !verifiedSet.has(src))) {
         checkedMap.set(entry.key, { ok: false });
-      } else {
+      } else if (!mId.startsWith('mihon-')) {
         liveTargets.push(entry);
       }
     }

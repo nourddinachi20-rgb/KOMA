@@ -9,7 +9,6 @@ import {
   FolderPlus,
   Layers,
   Play,
-  Sparkles,
   Star,
 } from 'lucide-react';
 import type { AniListMediaInfo } from '../types';
@@ -18,6 +17,54 @@ import { cleanDescriptionMarkup, getProxiedImageUrl } from '../utils/api';
 import { extractAmbientColor } from '../utils/colorExtractor';
 import { useT } from '../utils/i18n';
 import { MangaCard } from './MangaCard';
+
+function HeroCoverImg({
+  src,
+  fallbackSrc,
+  alt,
+  className,
+}: {
+  src: string;
+  fallbackSrc?: string;
+  alt: string;
+  className: string;
+}) {
+  const candidates = [
+    src,
+    src && src.includes('/api/image?') ? `${src}&r=1` : '',
+    src && src.includes('/api/image?') ? `${src}&r=2` : '',
+    fallbackSrc && fallbackSrc !== src ? fallbackSrc : '',
+  ].filter(Boolean);
+
+  const [idx, setIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setIdx(0);
+    setFailed(false);
+  }, [src, fallbackSrc]);
+
+  const activeSrc = candidates[idx] ?? '';
+  if (!activeSrc || failed) return null;
+
+  return (
+    <img
+      src={activeSrc}
+      alt={alt}
+      loading="eager"
+      decoding="async"
+      onError={() => {
+        if (idx + 1 < candidates.length) {
+          const delayMs = [600, 1400, 2400][idx] ?? 1500;
+          window.setTimeout(() => setIdx((n) => n + 1), delayMs);
+        } else {
+          setFailed(true);
+        }
+      }}
+      className={className}
+    />
+  );
+}
 
 export function HomeView() {
   const {
@@ -100,15 +147,69 @@ export function HomeView() {
     if (!currentHero || !currentHeroKey) return;
     const hasDesc = Boolean(cleanDescriptionMarkup(currentHero.description));
     const hasTags = currentHero.tags.length > 0;
-    if ((hasDesc && hasTags) || aniRequestedRef.current.has(currentHeroKey)) return;
-    aniRequestedRef.current.add(currentHeroKey);
+    const altKey = currentHero.altTitles?.[0] ?? '';
+    const reqKey = `${currentHeroKey}|${altKey}`;
+    if ((hasDesc && hasTags) || aniRequestedRef.current.has(reqKey)) return;
+    aniRequestedRef.current.add(reqKey);
     const keyForReq = currentHeroKey;
-    void window.noctis
-      .fetchAniListMetadata(currentHero.title, currentHero.altTitles?.[0])
-      .then((meta) => {
-        setAniHeroMeta((prev) => ({ ...prev, [keyForReq]: meta }));
-      })
-      .catch(() => {});
+    const titleForReq = currentHero.title;
+    void (async () => {
+      try {
+        const meta = await window.noctis.fetchAniListMetadata(titleForReq, altKey || undefined);
+        let desc = cleanDescriptionMarkup(meta?.description);
+        let genres = meta?.genres ?? [];
+
+        if (!desc) {
+          const cleanTitle = titleForReq
+            .replace(/\s*\([^)]*\)\s*/g, ' ')
+            .replace(/\s*\[[^\]]*\]\s*/g, ' ')
+            .trim();
+          const mdRes = await fetch(
+            `https://api.mangadex.org/manga?title=${encodeURIComponent(cleanTitle || titleForReq)}&limit=3`,
+          ).catch(() => null);
+          if (mdRes?.ok) {
+            const mdJson = (await mdRes.json().catch(() => null)) as {
+              data?: Array<{
+                attributes?: {
+                  description?: Record<string, string>;
+                  tags?: Array<{ attributes?: { name?: { en?: string } } }>;
+                };
+              }>;
+            } | null;
+            for (const item of mdJson?.data ?? []) {
+              const candidateDesc =
+                item.attributes?.description?.en ||
+                Object.values(item.attributes?.description ?? {})[0] ||
+                '';
+              const cleaned = cleanDescriptionMarkup(candidateDesc);
+              if (cleaned) {
+                desc = cleaned;
+                if (genres.length === 0) {
+                  genres = (item.attributes?.tags ?? [])
+                    .map((tg) => tg.attributes?.name?.en ?? '')
+                    .filter(Boolean);
+                }
+                break;
+              }
+            }
+          }
+        }
+
+        const merged: AniListMediaInfo = meta
+          ? { ...meta, description: desc || meta.description, genres: genres.length ? genres : meta.genres }
+          : {
+              id: 0,
+              title: titleForReq,
+              description: desc || undefined,
+              genres,
+              relations: [],
+              recommendations: [],
+            };
+        setAniHeroMeta((prev) => ({ ...prev, [keyForReq]: merged }));
+      } catch {
+        // ignore metadata lookup failure
+      }
+    })();
   }, [currentHero, currentHeroKey]);
 
   useEffect(() => {
@@ -209,10 +310,10 @@ export function HomeView() {
           >
             {heroBackdropThumb && (
               <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <img
+                <HeroCoverImg
                   src={heroBackdropThumb}
+                  fallbackSrc={currentHero.coverUrl || undefined}
                   alt=""
-                  decoding="async"
                   className="h-full w-full object-cover object-center opacity-20 blur-md scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-[#040406] via-[#040406]/85 to-black/35" />
@@ -244,10 +345,10 @@ export function HomeView() {
                         style={{ aspectRatio: '2/3' }}
                       >
                         {heroCover ? (
-                          <img
+                          <HeroCoverImg
                             src={heroCover}
+                            fallbackSrc={currentHero.largeCoverUrl || currentHero.coverUrl || undefined}
                             alt={currentHero.title}
-                            decoding="async"
                             className="h-full w-full object-cover"
                           />
                         ) : (
@@ -258,9 +359,8 @@ export function HomeView() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono-tech uppercase tracking-wider">
-                          <span className="flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-white">
-                            <Sparkles className="h-2.5 w-2.5 accent-fg" />
-                            {t.home.spotlight}
+                          <span className="rounded-full border border-white/15 bg-black/50 px-2.5 py-0.5 text-zinc-200">
+                            {currentHero.source.replace(/_/g, ' ')}
                           </span>
                           {currentHero.rating > 0 && (
                             <span className="flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-zinc-200">
@@ -293,10 +393,6 @@ export function HomeView() {
                     </div>
 
                     <div className="hidden lg:flex flex-wrap items-center gap-2 text-[11px] font-mono-tech uppercase tracking-[0.16em]">
-                      <span className="flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-white backdrop-blur-md">
-                        <Sparkles className="h-3 w-3 accent-fg" />
-                        {t.home.spotlight}
-                      </span>
                       <span className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-zinc-300">
                         {currentHero.source.replace(/_/g, ' ')}
                       </span>
@@ -403,10 +499,10 @@ export function HomeView() {
                     style={{ aspectRatio: '2/3' }}
                   >
                     {prevHeroCover && (
-                      <img
+                      <HeroCoverImg
                         src={prevHeroCover}
+                        fallbackSrc={prevHero.coverUrl || undefined}
                         alt={prevHero.title}
-                        decoding="async"
                         className="h-full w-full object-cover brightness-75"
                       />
                     )}
@@ -424,10 +520,10 @@ export function HomeView() {
                     style={{ aspectRatio: '2/3' }}
                   >
                     {nextHeroCover && (
-                      <img
+                      <HeroCoverImg
                         src={nextHeroCover}
+                        fallbackSrc={nextHero.coverUrl || undefined}
                         alt={nextHero.title}
-                        decoding="async"
                         className="h-full w-full object-cover brightness-75"
                       />
                     )}
@@ -445,10 +541,10 @@ export function HomeView() {
                   style={{ aspectRatio: '2/3' }}
                 >
                   {heroCover && (
-                    <img
+                    <HeroCoverImg
                       src={heroCover}
+                      fallbackSrc={currentHero.largeCoverUrl || currentHero.coverUrl || undefined}
                       alt={currentHero.title}
-                      decoding="async"
                       className="h-full w-full object-cover"
                     />
                   )}
@@ -509,7 +605,7 @@ export function HomeView() {
         )}
 
         {/* Live Source Rows */}
-        {homeRows.map((row) => (
+        {homeRows.map((row, rIdx) => (
           <section key={row.source}>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold tracking-tight text-white">{row.title}</h2>
@@ -533,8 +629,13 @@ export function HomeView() {
               </div>
             ) : row.items.length > 0 ? (
               <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2 sm:gap-4">
-                {row.items.map((item) => (
-                  <MangaCard key={`${row.source}-${item.id}`} manga={item} compact />
+                {row.items.map((item, cIdx) => (
+                  <MangaCard
+                    key={`${row.source}-${item.id}`}
+                    manga={item}
+                    compact
+                    eager={rIdx === 0 && cIdx < 6}
+                  />
                 ))}
               </div>
             ) : (

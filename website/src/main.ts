@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.1.4';
+const DEFAULT_VERSION = '1.1.5';
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -21,6 +21,15 @@ interface GitHubRelease {
 }
 
 const FALLBACK_RELEASES: GitHubRelease[] = [
+  {
+    tag_name: 'v1.1.5',
+    name: 'KOMA v1.1.5',
+    published_at: '2026-11-28T19:30:00Z',
+    body: `### Fixes
+- **Instant Sources & No Broken-Source Ghost Banner:** Ships all 95 verified sources in Android assets alongside Desktop, merges bundled sources on every launch/update, and clears transient failed keys across restarts.
+- **Home Covers & Full Hero Synopses:** Staggers initial cover loading with resilient image retries on Hero banners & cards, and adds MangaDex API + alt-title AniList fallbacks so Hero items show synopses reliably.
+- **UI Debloat:** Strips promo badges ("Spotlight", "End-to-End Encrypted", "Made by VirtualDrum"), extra logos, and filler text.`,
+  },
   {
     tag_name: 'v1.1.4',
     name: 'KOMA v1.1.4',

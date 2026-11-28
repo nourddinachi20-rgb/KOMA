@@ -67,7 +67,7 @@ class KomaNativePlugin : Plugin() {
 
     private fun startEmbeddedEngine() {
         try {
-            AndroidKomaEngine.start(context.filesDir, context.cacheDir) { port, count ->
+            AndroidKomaEngine.start(context.filesDir, context.cacheDir, context.assets) { port, count ->
                 logs.add("Android KOMA Engine started on 127.0.0.1:$port ($count sources)")
                 notifyEngineStatus()
             }
@@ -685,6 +685,7 @@ class KomaNativePlugin : Plugin() {
         val knownDead = setOf(
             "MANGAPARK", "MANGASEE", "MANGALIFE", "COMICK", "COMICK_FUN",
             "REAPER_SCANS", "FLAMESCANS", "LUMINOUSSCANS", "MANHUARM", "MANGA_DEMON",
+            "ASURASCANS", "ASURATOON",
         )
         val verifiedSet = mutableSetOf<String>()
         runCatching {
@@ -714,10 +715,12 @@ class KomaNativePlugin : Plugin() {
         val liveTargets = mutableListOf<JSONObject>()
         for (entry in targets) {
             val mKey = entry.optString("key")
-            val src = entry.optJSONObject("manga")?.optString("source") ?: ""
+            val mangaObj = entry.optJSONObject("manga")
+            val src = mangaObj?.optString("source") ?: ""
+            val mId = mangaObj?.optString("id") ?: ""
             if (src in knownDead || (verifiedSet.isNotEmpty() && src !in verifiedSet)) {
                 checkedMap[mKey] = CheckedResult(mKey, false, null, null, 0, 0, emptyList())
-            } else {
+            } else if (!mId.startsWith("mihon-")) {
                 liveTargets.add(entry)
             }
         }
@@ -963,6 +966,9 @@ class KomaNativePlugin : Plugin() {
         }
         add(stripTitleNoise(title))
         add(title)
+        for (sep in listOf(":", " - ", " — ", " ~ ")) {
+            if (title.contains(sep)) add(stripTitleNoise(title.substringBefore(sep)))
+        }
         if (!altTitle.isNullOrBlank()) {
             for (part in altTitle.split(Regex("[·/|;\\n]+"))) add(stripTitleNoise(part))
         }

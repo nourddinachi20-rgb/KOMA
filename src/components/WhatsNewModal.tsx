@@ -39,16 +39,9 @@ export function WhatsNewModal() {
             {/* Header */}
             <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] px-6 py-5">
               <div>
-                <div className="accent-pill inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono-tech text-[10px] font-semibold uppercase tracking-[0.2em]">
-                  <Sparkles className="h-3 w-3" />
-                  <span>{t.whatsNew.badge}</span>
-                </div>
-                <h2 className="mt-2.5 text-2xl font-extrabold tracking-tight text-white">
+                <h2 className="text-xl font-extrabold tracking-tight text-white">
                   {t.whatsNew.titlePrefix} {appVersion}
                 </h2>
-                <p className="mt-1 text-xs text-zinc-400">
-                  KOMA · VirtualDrum
-                </p>
               </div>
               <button
                 onClick={() => void dismissWhatsNew()}

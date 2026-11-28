@@ -90,6 +90,11 @@ function buildTitleCandidates(title: string, altTitle?: string | null): string[]
 
   add(stripTitleNoise(title));
   add(title);
+  for (const sep of [':', ' - ', ' — ', ' ~ ']) {
+    if (title.includes(sep)) {
+      add(stripTitleNoise(title.split(sep)[0]));
+    }
+  }
 
   if (altTitle) {
     for (const part of altTitle.split(/[·/|;\n]+/)) {

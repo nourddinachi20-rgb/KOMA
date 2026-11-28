@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
 import { useT } from '../utils/i18n';
-import { KomaLogo } from './KomaLogo';
 
 const STAGE_PROGRESS = {
   hydrating: 22,
@@ -11,7 +10,7 @@ const STAGE_PROGRESS = {
   ready: 100,
 } as const;
 
-const MIN_INTRO_MS = 1500;
+const MIN_INTRO_MS = 1400;
 
 const BUNDLED_SPLASH_COVERS = Array.from(
   { length: 12 },
@@ -77,7 +76,6 @@ export function SplashScreen() {
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
           className="keep-dark fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-black text-white select-none"
         >
-          {/* GPU-only angled drifting wall using lightweight bundled local covers (zero network traffic) */}
           <div
             className="pointer-events-none absolute inset-[-18%] flex flex-col justify-center gap-4 -rotate-6"
             style={{ contain: 'strict', transform: 'translateZ(0)' }}
@@ -111,7 +109,6 @@ export function SplashScreen() {
             ))}
           </div>
 
-          {/* Monochrome OLED vignette + subtle accent halo */}
           <div
             className="pointer-events-none absolute inset-0"
             style={{
@@ -119,65 +116,14 @@ export function SplashScreen() {
                 'radial-gradient(ellipse 68% 62% at 50% 50%, rgba(4,4,7,0.62) 0%, rgba(2,2,4,0.88) 54%, #000000 92%)',
             }}
           />
-          <div
-            className="pointer-events-none absolute h-[460px] w-[460px] rounded-full"
-            style={{
-              background:
-                'radial-gradient(circle, rgba(var(--koma-accent-rgb), 0.14) 0%, rgba(var(--koma-accent-rgb), 0.03) 45%, transparent 72%)',
-            }}
-          />
 
-          {/* Center Emblem + Wordmark Choreography */}
           <div className="relative z-10 flex flex-col items-center">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.88, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
-              className="relative flex h-24 w-24 items-center justify-center rounded-[28px] border border-white/20 bg-[#08080C] shadow-[0_24px_80px_rgba(0,0,0,0.95)]"
-            >
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0, 0.7, 0.25] }}
-                transition={{ duration: 1.4, times: [0, 0.45, 1], ease: 'easeOut' }}
-                className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-white/40"
-              />
-              <KomaLogo animated className="h-16 w-16" />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-6 pl-[0.4em] text-3xl font-black tracking-[0.4em] text-white sm:text-4xl"
-            >
+            <div className="pl-[0.4em] text-4xl font-black tracking-[0.4em] text-white sm:text-5xl">
               KOMA
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              className="accent-pill mt-2.5 flex items-center gap-2 rounded-full border px-3.5 py-1"
-            >
-              <span className="font-mono-tech text-[10px] font-semibold uppercase tracking-[0.26em]">
-                {t.splash.madeBy}
-              </span>
-            </motion.div>
-
-            <motion.div
-              initial={{ scaleX: 0, opacity: 0 }}
-              animate={{ scaleX: 1, opacity: 1 }}
-              transition={{ duration: 0.45, delay: 0.32, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-4 h-[1px] w-28 origin-center bg-gradient-to-r from-transparent via-white/55 to-transparent"
-            />
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.35, delay: 0.4 }}
-              className="mt-5 flex flex-col items-center"
-            >
-              <div className="h-[2.5px] w-60 overflow-hidden rounded-full bg-white/10">
+            <div className="mt-6 flex flex-col items-center">
+              <div className="h-[2.5px] w-56 overflow-hidden rounded-full bg-white/10">
                 <div
                   style={{ width: `${progress}%`, backgroundColor: 'var(--koma-accent, #FFFFFF)' }}
                   className="h-full transition-[width] duration-400 ease-out"
@@ -194,7 +140,7 @@ export function SplashScreen() {
                   <span className="text-zinc-500">· {sourcesCount}</span>
                 )}
               </div>
-            </motion.div>
+            </div>
 
             {engineError && (
               <p className="mt-4 max-w-xs text-center text-xs text-rose-400">

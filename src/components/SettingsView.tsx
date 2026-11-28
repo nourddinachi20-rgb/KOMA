@@ -210,10 +210,6 @@ export function SettingsView() {
           />
           {openSection === 'account' && (
             <div className="space-y-4 border-t border-white/[0.06] px-5 py-4">
-              <div className="rounded-xl border border-white/[0.08] bg-black/40 px-3.5 py-2.5 text-xs text-zinc-400">
-                <strong className="text-white">End-to-End Encrypted:</strong> Your library and history are encrypted on your device using your password before syncing. No Google sign-in, no email, and the server cannot read your data.
-              </div>
-
               {syncSession ? (
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
@@ -336,10 +332,7 @@ export function SettingsView() {
             <div className="space-y-5 border-t border-white/[0.06] px-5 py-4">
               {/* Language */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-medium text-zinc-200">{t.settings.languageLabel}</div>
-                  <span className="text-[11px] text-zinc-500">{t.settings.moreLanguagesNote}</span>
-                </div>
+                <div className="text-xs font-medium text-zinc-200">{t.settings.languageLabel}</div>
                 <div className="flex flex-wrap gap-2">
                   {(
                     [
@@ -746,7 +739,7 @@ export function SettingsView() {
           <SectionHeader
             id="about"
             title={t.settings.updatesVersionTitle}
-            summary={`v${appVersion} · VirtualDrum`}
+            summary={`v${appVersion}`}
           />
           {openSection === 'about' && (
             <div className="space-y-4 border-t border-white/[0.06] px-5 py-4">
@@ -822,7 +815,7 @@ export function SettingsView() {
         </section>
 
         <div className="pt-4 text-center text-[11px] tracking-[0.2em] text-zinc-500 uppercase">
-          KOMA v{appVersion} · VirtualDrum
+          KOMA v{appVersion}
         </div>
       </div>
     </div>

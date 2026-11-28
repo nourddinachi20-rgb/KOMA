@@ -25,7 +25,11 @@ import java.util.concurrent.atomic.AtomicInteger
 
 object AndroidKomaEngine {
     private val ALLOWED_LOCALES = setOf("en", "fr", "ar", "")
-    private val DISABLED_SOURCES = setOf("ASURASCANS", "ASURATOON")
+    private val DISABLED_SOURCES = setOf(
+        "ASURASCANS", "ASURATOON", "MANGAPARK", "MANGASEE", "MANGALIFE",
+        "COMICK", "COMICK_FUN", "REAPER_SCANS", "FLAMESCANS", "LUMINOUSSCANS",
+        "MANHUARM", "MANGA_DEMON", "BATO", "MANGAFIRE",
+    )
     private val verifiedSources: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val imageWriteCounter = AtomicInteger(0)
     private const val MAX_IMAGE_CACHE_BYTES = 1024L * 1024L * 1024L // 1 GB LRU cap on mobile
@@ -124,27 +128,33 @@ object AndroidKomaEngine {
         }
     }
 
-    private fun loadInitialVerifiedSources() {
+    private fun loadInitialVerifiedSources(assets: android.content.res.AssetManager?) {
         verifiedSources.clear()
         val curatedDefaults = listOf(
             "MANGADEX", "MANGABALL_EN", "MANGABALL_FR", "MANGABALL_AR", "MANGABALL",
             "WEEBCENTRAL", "MANGAPILL", "MANGAREAD", "LELMANGA",
-            "TEAMXNOVEL", "MANGAKATANA", "BATO", "MANGAFIRE", "TOONILY", "TCBSCANS",
-            "FMTEAM", "SCANTRA", "SCANS_MANGAS", "LELSCANVF", "MANGA_ORIGINES",
-            "ARABMANGA", "MANGA_SPARK", "GMANGA", "AZORAMANGA", "OLYMPUSTAFF"
+            "TEAMXNOVEL", "MANGAKATANA", "TOONILY", "TCBSCANS",
+            "SCANS_MANGAS", "LELSCANVF", "MANGA_ORIGINES", "MANGA_SPARK"
         )
         for (name in curatedDefaults) {
             if (name !in DISABLED_SOURCES && (CustomSourceRegistry.isCustom(name) || resolveSource(name) != null)) {
                 verifiedSources.add(name)
             }
         }
-        if (verifiedCacheFile.exists()) {
+        val bundledRaw = assets?.let {
+            runCatching { it.open("verified-sources.json").bufferedReader().use { r -> r.readText() } }.getOrNull()
+        }
+        val cachedRaw = if (verifiedCacheFile.exists()) {
+            runCatching { verifiedCacheFile.readText() }.getOrNull()
+        } else null
+        for (raw in listOf(bundledRaw, cachedRaw)) {
+            if (raw.isNullOrBlank()) continue
             runCatching {
-                val arr = JSONArray(verifiedCacheFile.readText())
+                val arr = JSONArray(raw)
                 for (i in 0 until arr.length()) {
                     val obj = arr.optJSONObject(i) ?: continue
                     val name = obj.optString("name", "")
-                    if (name.isNotBlank() && name !in DISABLED_SOURCES && (resolveSource(name) != null || CustomSourceRegistry.isCustom(name))) {
+                    if (name.isNotBlank() && name !in DISABLED_SOURCES && !name.contains("ASURA") && (resolveSource(name) != null || CustomSourceRegistry.isCustom(name))) {
                         verifiedSources.add(name)
                     }
                 }
@@ -170,14 +180,19 @@ object AndroidKomaEngine {
     }
 
     @Synchronized
-    fun start(filesDir: File, cacheDir: File, onReady: (Int, Int) -> Unit) {
+    fun start(
+        filesDir: File,
+        cacheDir: File,
+        assets: android.content.res.AssetManager? = null,
+        onReady: (Int, Int) -> Unit,
+    ) {
         if (server != null && ready) {
             onReady(port, verifiedSources.size)
             return
         }
         NoctisMangaLoaderContext.init(cacheDir)
         verifiedCacheFile = File(filesDir, "koma-verified-sources.json")
-        loadInitialVerifiedSources()
+        loadInitialVerifiedSources(assets)
         port = findFreePort(47832)
 
         val eng = embeddedServer(CIO, host = "127.0.0.1", port = port) {

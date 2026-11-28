@@ -89,10 +89,9 @@ export function SourcesView() {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.07] px-6 py-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Working Sources</h1>
-            <span className="flex items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-0.5 font-mono-tech text-[10px] text-emerald-300">
-              <CheckCircle2 className="h-3 w-3" />
-              {counts.all} VERIFIED LIVE
+            <h1 className="text-2xl font-bold tracking-tight text-white">{t.sources.title}</h1>
+            <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-0.5 font-mono-tech text-[10px] text-zinc-300">
+              {counts.all}
             </span>
           </div>
         </div>

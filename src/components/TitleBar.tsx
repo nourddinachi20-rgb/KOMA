@@ -18,7 +18,6 @@ import { useAppStore } from '../store/useAppStore';
 import type { NavView } from '../types';
 import { useT } from '../utils/i18n';
 import { closeAllPopovers, useClosePopoversListener } from './CustomSelect';
-import { KomaLogo } from './KomaLogo';
 
 const isDesktopShell =
   typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
@@ -54,8 +53,7 @@ export function TitleBar() {
           onClick={() => navigateTo('home')}
           className="group flex shrink-0 items-center gap-2 text-left focus:outline-none cursor-pointer"
         >
-          <KomaLogo className="h-7 w-7 shrink-0 transition-transform duration-300 group-hover:scale-105" />
-          <span className="text-[13px] font-bold tracking-[0.2em] lg:tracking-[0.26em] text-white/95">KOMA</span>
+          <span className="text-[14px] font-black tracking-[0.22em] lg:tracking-[0.28em] text-white/95">KOMA</span>
         </button>
 
         <div
