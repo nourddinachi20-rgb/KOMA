@@ -147,7 +147,9 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
         await migrateLibraryBatch(batch);
       }
     });
-    flushChainRef.current = next.catch(() => {});
+    flushChainRef.current = next.catch((err) => {
+      notify(err instanceof Error ? err.message : 'Failed to save migrated batch', 'error');
+    });
     return next;
   };
 
@@ -176,15 +178,27 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
     return Array.from(new Set([...pinned, ...sameLang, ...rest])).slice(0, 14);
   }, [sortedSources, settings.pinnedSources, settings.preferredLanguages]);
 
+  const sourceOrderFor = (srcName: string) => {
+    const orders = sources.find((s) => s.name === srcName)?.sortOrders;
+    if (orders?.includes('RELEVANCE')) return 'RELEVANCE' as const;
+    if (orders?.includes('POPULARITY')) return 'POPULARITY' as const;
+    return orders?.[0];
+  };
+
   const searchOneSource = async (
     entry: LibraryEntry,
     engineUrl: string,
     srcName: string,
     queries: string[],
   ): Promise<Manga | null> => {
+    const order = sourceOrderFor(srcName);
     for (const q of queries) {
       if (stopRef.current) return null;
-      const items = await fetchMangaList(engineUrl, srcName, { query: q }).catch(() => []);
+      const items = await fetchMangaList(engineUrl, srcName, {
+        query: q,
+        order,
+        skipCfChallenge: true,
+      }).catch(() => []);
       const best = pickBestCandidate(entry, items);
       if (best) {
         const full = await fetchMangaDetails(engineUrl, best).catch(() => null);
@@ -224,25 +238,51 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
     }));
 
     try {
-      const queries = buildSearchQueries(entry);
-      let matchedFull: Manga | null = null;
-
-      if (targetMode !== 'AUTO') {
-        matchedFull = await searchOneSource(entry, engineUrl, targetMode, queries);
-      }
-
-      if (!matchedFull && (targetMode === 'AUTO' || fallbackToAuto)) {
-        const pool = autoTargetPool.filter(
-          (s) => s !== entry.manga.source && s !== targetMode,
-        );
-        for (const srcName of pool) {
-          if (stopRef.current) break;
-          const candidate = await searchOneSource(entry, engineUrl, srcName, queries);
-          if (candidate && candidate.chapters && candidate.chapters.length > 0) {
-            matchedFull = candidate;
-            break;
+      const baseQueries = buildSearchQueries(entry);
+      const runPool = async (queries: string[], candidateEntry: LibraryEntry): Promise<Manga | null> => {
+        let hit: Manga | null = null;
+        if (targetMode !== 'AUTO') {
+          hit = await searchOneSource(candidateEntry, engineUrl, targetMode, queries);
+        }
+        if (!hit && (targetMode === 'AUTO' || fallbackToAuto)) {
+          const pool = autoTargetPool.filter(
+            (s) => s !== candidateEntry.manga.source && s !== targetMode,
+          );
+          for (const srcName of pool) {
+            if (stopRef.current) break;
+            const candidate = await searchOneSource(candidateEntry, engineUrl, srcName, queries);
+            if (candidate && candidate.chapters && candidate.chapters.length > 0) {
+              return candidate;
+            }
+            if (!hit && candidate) hit = candidate;
           }
-          if (!matchedFull && candidate) matchedFull = candidate;
+        }
+        return hit;
+      };
+
+      let matchedFull = await runPool(baseQueries, entry);
+
+      // If no match yet (common for imported backups that only have Romaji OR English title), look up AniList aliases cleanly
+      if (!matchedFull && !stopRef.current) {
+        const meta = await window.noctis
+          .fetchAniListMetadata(entry.manga.title, entry.manga.altTitles?.[0])
+          .catch(() => null);
+        const extraNames = [meta?.title]
+          .map((x) => (x ?? '').trim())
+          .filter(
+            (x) =>
+              x.length >= 2 &&
+              !baseQueries.some((q) => q.toLowerCase() === x.toLowerCase()),
+          );
+        if (extraNames.length > 0) {
+          const enrichedEntry: LibraryEntry = {
+            ...entry,
+            manga: {
+              ...entry.manga,
+              altTitles: Array.from(new Set([...(entry.manga.altTitles ?? []), ...extraNames])),
+            },
+          };
+          matchedFull = await runPool(extraNames, enrichedEntry);
         }
       }
 
@@ -327,6 +367,16 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
   };
 
   const pendingEntries = sessionEntries.filter((e) => rowStatus[e.key]?.status !== 'done');
+  const displayEntries = useMemo(() => {
+    const rank = (k: string) => {
+      const s = rowStatus[k]?.status;
+      if (s === 'failed') return 0;
+      if (s === 'searching') return 1;
+      if (!s || s === 'pending') return 2;
+      return 3;
+    };
+    return [...sessionEntries].sort((a, b) => rank(a.key) - rank(b.key));
+  }, [sessionEntries, rowStatus]);
 
   return (
     <>
@@ -398,7 +448,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
               </div>
 
               <div className="flex-1 space-y-2 overflow-y-auto p-5">
-                {sessionEntries.map((entry) => {
+                {displayEntries.map((entry) => {
                   const st = rowStatus[entry.key];
                   return (
                     <div

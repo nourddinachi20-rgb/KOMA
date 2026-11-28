@@ -203,6 +203,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   oledTrueBlack: true,
   ambientGlow: true,
   preloadCount: 4,
+  chapterDupMode: 'dedupe',
+  mangaDupPrefs: {},
   autoScrollSpeed: 2,
   discordRpc: false,
   discordClientId: '',

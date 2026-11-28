@@ -68,9 +68,11 @@ export async function fetchMangaList(
     query?: string;
     tags?: MangaTag[];
     states?: string[];
+    skipCfChallenge?: boolean;
   } = {},
 ): Promise<Manga[]> {
-  const res = await fetchWithCfRetry(`${engineUrl}/api/sources/${encodeURIComponent(source)}/list`, {
+  const endpoint = `${engineUrl}/api/sources/${encodeURIComponent(source)}/list`;
+  const init: RequestInit = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -82,7 +84,8 @@ export async function fetchMangaList(
         states: opts.states?.length ? opts.states : undefined,
       },
     }),
-  });
+  };
+  const res = await (opts.skipCfChallenge ? fetch(endpoint, init) : fetchWithCfRetry(endpoint, init));
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `Failed to fetch list (${res.status})`);

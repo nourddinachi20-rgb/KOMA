@@ -227,6 +227,8 @@ export interface AppSettings {
   oledTrueBlack: boolean;
   ambientGlow: boolean;
   preloadCount: number;
+  chapterDupMode?: 'dedupe' | 'collapse' | 'all';
+  mangaDupPrefs?: Record<string, 'dedupe' | 'collapse' | 'all'>;
   autoScrollSpeed: number;
   discordRpc: boolean;
   discordClientId: string;

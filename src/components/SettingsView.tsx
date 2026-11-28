@@ -513,6 +513,26 @@ export function SettingsView() {
 
               <div className="flex items-center justify-between gap-4 border-t border-white/[0.06] pt-4">
                 <div>
+                  <div className="text-sm text-zinc-200">Duplicate Chapters</div>
+                  <div className="text-xs text-zinc-500">
+                    Hide duplicate chapter uploads and keep only the latest version
+                  </div>
+                </div>
+                <CustomSelect
+                  value={settings.chapterDupMode ?? 'dedupe'}
+                  onChange={(v) =>
+                    updateSettings({ chapterDupMode: v as 'dedupe' | 'collapse' | 'all' })
+                  }
+                  options={[
+                    { value: 'dedupe', label: 'Keep Latest Copy' },
+                    { value: 'collapse', label: 'Collapse .x (Latest Only)' },
+                    { value: 'all', label: 'Show All Uploads' },
+                  ]}
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-4 border-t border-white/[0.06] pt-4">
+                <div>
                   <div className="text-sm text-zinc-200">{t.settings.showNsfw}</div>
                   <div className="text-xs text-zinc-500">{t.settings.showNsfwDesc}</div>
                 </div>

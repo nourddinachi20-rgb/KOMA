@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.0.9';
+export const APP_VERSION = '1.1.0';
 
 export interface ChangelogSection {
   title: string;
@@ -6,9 +6,9 @@ export interface ChangelogSection {
   items: string[];
 }
 
-export const DEFAULT_WHATS_NEW_NOTES = `### Fixes
-- **Library Update Overwrite Fix:** \`checkLibraryUpdates\` now checks updates concurrently in batches of 6 (15s timeout) and re-reads current \`library.json\` under lock before saving, so background chapter checks never revert migrated manga back to old broken sources.
-- **More Reliable Query Matching:** Added core-title splitting for better migration coverage across working sources.`;
+export const DEFAULT_WHATS_NEW_NOTES = `### New Features
+- **Smart Chapter Deduplication:** Automatically hides duplicate copies of the same chapter across multi-group/v1-v2 uploads and keeps only the latest version across the chapter directory, Reader next/previous navigation, Quick Play, and downloads.
+- **Collapse \`.x\` Sub-Chapters:** Added an optional global setting in Settings and a per-manga **Collapse .x / Latest Only (.x)** toggle on series pages whenever \`.1\`/\`.2\`/\`.6\` sub-chapters exist.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

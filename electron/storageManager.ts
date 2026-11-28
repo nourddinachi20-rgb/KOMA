@@ -82,6 +82,8 @@ export interface AppSettings {
   oledTrueBlack: boolean;
   ambientGlow: boolean;
   preloadCount: number;
+  chapterDupMode?: 'dedupe' | 'collapse' | 'all';
+  mangaDupPrefs?: Record<string, 'dedupe' | 'collapse' | 'all'>;
   autoScrollSpeed: number;
   discordRpc: boolean;
   discordClientId: string;
@@ -132,6 +134,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   oledTrueBlack: true,
   ambientGlow: true,
   preloadCount: 4,
+  chapterDupMode: 'dedupe',
+  mangaDupPrefs: {},
   autoScrollSpeed: 2,
   discordRpc: false,
   discordClientId: '',

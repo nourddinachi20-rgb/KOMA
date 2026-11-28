@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useT } from '../utils/i18n';
+import { resolveCleanChapters } from '../utils/chapters';
 import { BulkMigrateModal } from './BulkMigrateModal';
 import { CustomSelect, closeAllPopovers, useClosePopoversListener } from './CustomSelect';
 import { MangaCard } from './MangaCard';
@@ -50,6 +51,7 @@ export function LibraryView() {
     history,
     stats,
     sources,
+    settings,
     engineStatus,
     failedSourceKeys,
     detailsCache,
@@ -137,12 +139,14 @@ export function LibraryView() {
       return;
     }
     const readSet = new Set(entry.readChapterIds ?? []);
-    const histIdx = hist ? chapters.findIndex((c) => c.id === hist.chapterId) : -1;
-    const unreadIdx = chapters.findIndex((c) => !readSet.has(c.id));
+    const dupMode = settings.mangaDupPrefs?.[entry.key] ?? settings.chapterDupMode ?? 'dedupe';
+    const cleanChapters = resolveCleanChapters(chapters, { mode: dupMode, readIds: readSet }).chapters;
+    const histIdx = hist ? cleanChapters.findIndex((c) => c.id === hist.chapterId) : -1;
+    const unreadIdx = cleanChapters.findIndex((c) => !readSet.has(c.id));
     const idx = histIdx >= 0 ? histIdx : unreadIdx >= 0 ? unreadIdx : 0;
     openReader({
       manga: detailsCache[entry.key] ?? entry.manga,
-      chapters,
+      chapters: cleanChapters,
       chapterIndex: idx,
       initialPage: histIdx >= 0 ? hist?.pageIndex : 0,
     });

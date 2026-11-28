@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.0.9';
+const DEFAULT_VERSION = '1.1.0';
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/latest/download/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -19,6 +19,14 @@ interface GitHubRelease {
 }
 
 const FALLBACK_RELEASES: GitHubRelease[] = [
+  {
+    tag_name: 'v1.1.0',
+    name: 'KOMA v1.1.0',
+    published_at: '2026-11-28T00:50:00Z',
+    body: `### New Features
+- **Smart Chapter Deduplication:** Automatically hides duplicate uploads of the same chapter across the chapter list, Reader next/previous navigation, Quick Play, and downloads, keeping only the latest version.
+- **Collapse .x Sub-Chapters:** Added an optional global setting in Settings plus a one-tap per-series toggle whenever \`.1\`/\`.2\`/\`.6\` chapters exist.`,
+  },
   {
     tag_name: 'v1.0.9',
     name: 'KOMA v1.0.9',
