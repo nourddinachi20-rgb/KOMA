@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.1.0';
+const DEFAULT_VERSION = '1.1.1';
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/latest/download/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -19,6 +19,14 @@ interface GitHubRelease {
 }
 
 const FALLBACK_RELEASES: GitHubRelease[] = [
+  {
+    tag_name: 'v1.1.1',
+    name: 'KOMA v1.1.1',
+    published_at: '2026-11-28T01:08:00Z',
+    body: `### Fixes
+- **Catch Dead Sources (MangaPark, MangaSee, Comick, etc.):** Removed dead domains from verified defaults and wired \`checkLibraryUpdates\` + \`prefetchMangaDetails\` to flag 0-chapter or failing entries persistently rather than reporting "Library is up to date".
+- **Manga Page Top Bar Spacing:** Added extra top safe-area padding on MangaDetailsPage so Back and Open Web never clip behind phone status bars.`,
+  },
   {
     tag_name: 'v1.1.0',
     name: 'KOMA v1.1.0',

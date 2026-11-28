@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { useT } from '../utils/i18n';
+import { KNOWN_BROKEN_SOURCES } from '../utils/api';
 import { resolveCleanChapters } from '../utils/chapters';
 import { BulkMigrateModal } from './BulkMigrateModal';
 import { CustomSelect, closeAllPopovers, useClosePopoversListener } from './CustomSelect';
@@ -87,6 +88,14 @@ export function LibraryView() {
       if (entry.manga.source === 'LOCAL') return false;
       if (failedSourceKeys[entry.key]) return true;
       if (entry.manga.id.startsWith('mihon-')) return true;
+      if (KNOWN_BROKEN_SOURCES.has(entry.manga.source)) return true;
+      if (
+        !entry.manga.coverUrl &&
+        (entry.totalChapters ?? 0) === 0 &&
+        (entry.manga.chapters?.length ?? 0) === 0
+      ) {
+        return true;
+      }
       const src = activeMap.get(entry.manga.source);
       return !src || src.isBroken;
     });

@@ -322,9 +322,9 @@ export function MangaDetailsPage() {
         </div>
       )}
 
-      <div className="relative z-10 mx-auto max-w-[1400px] px-6 pb-20 pt-4 sm:px-10">
+      <div className="relative z-10 mx-auto max-w-[1400px] px-6 pb-20 pt-8 sm:px-10 sm:pt-4">
         {/* Top Back Bar (draggable on Desktop since global header is hidden on manga pages) */}
-        <div className="app-drag pt-safe mb-6 flex items-center justify-between">
+        <div className="app-drag pt-safe mb-6 flex min-h-11 items-center justify-between">
           <button
             onClick={closeManga}
             className="app-no-drag oled-glass-subtle flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-zinc-200 transition hover:border-white/25 hover:text-white cursor-pointer"

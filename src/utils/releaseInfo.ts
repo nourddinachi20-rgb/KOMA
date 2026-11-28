@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.1.1';
 
 export interface ChangelogSection {
   title: string;
@@ -6,9 +6,9 @@ export interface ChangelogSection {
   items: string[];
 }
 
-export const DEFAULT_WHATS_NEW_NOTES = `### New Features
-- **Smart Chapter Deduplication:** Automatically hides duplicate copies of the same chapter across multi-group/v1-v2 uploads and keeps only the latest version across the chapter directory, Reader next/previous navigation, Quick Play, and downloads.
-- **Collapse \`.x\` Sub-Chapters:** Added an optional global setting in Settings and a per-manga **Collapse .x / Latest Only (.x)** toggle on series pages whenever \`.1\`/\`.2\`/\`.6\` sub-chapters exist.`;
+export const DEFAULT_WHATS_NEW_NOTES = `### Fixes
+- **Catch Dead Sources Like MangaPark & MangaSee:** Removed dead domains from verified defaults and updated \`checkLibraryUpdates\` + \`prefetchMangaDetails\` to flag failing or 0-chapter entries persistently (\`persistedFailedKeys\`), so Update Library reports failures instead of claiming everything is up to date.
+- **Manga Page Status Bar Padding:** Fixed Back / Open Web top bar spacing on mobile notch displays.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

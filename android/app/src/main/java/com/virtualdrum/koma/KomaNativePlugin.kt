@@ -684,8 +684,9 @@ class KomaNativePlugin : Plugin() {
 
         data class CheckedResult(
             val key: String,
-            val detailedManga: JSONObject,
-            val nextKnown: JSONArray,
+            val ok: Boolean,
+            val detailedManga: JSONObject?,
+            val nextKnown: JSONArray?,
             val totalChapters: Int,
             val unreadCount: Int,
             val updatesForManga: List<JSONObject>,
@@ -697,18 +698,25 @@ class KomaNativePlugin : Plugin() {
             targets.map { entry ->
                 async<CheckedResult?>(Dispatchers.IO) {
                     sem.withPermit {
+                        val mKey = entry.optString("key")
                         runCatching {
                             val manga = entry.getJSONObject("manga")
                             val source = manga.optString("source")
-                            val mKey = entry.optString("key")
                             val req = Request.Builder()
                                 .url("$engineUrl/api/sources/${Uri.encode(source)}/details")
                                 .post(JSONObject().put("manga", manga).toString().toRequestBody("application/json".toMediaType()))
                                 .build()
                             fastHttp.newCall(req).execute().use { res ->
-                                if (!res.isSuccessful) return@runCatching null
+                                if (!res.isSuccessful) {
+                                    return@runCatching CheckedResult(mKey, false, null, null, 0, 0, emptyList())
+                                }
                                 val detailed = JSONObject(res.body?.string() ?: "{}").optJSONObject("manga")
-                                    ?: return@runCatching null
+                                    ?: return@runCatching CheckedResult(mKey, false, null, null, 0, 0, emptyList())
+
+                                val chapters = detailed.optJSONArray("chapters") ?: JSONArray()
+                                if (chapters.length() == 0) {
+                                    return@runCatching CheckedResult(mKey, false, null, null, 0, 0, emptyList())
+                                }
 
                                 // Preserve cover URLs if upstream details omits them
                                 if (detailed.optString("coverUrl").isBlank() && manga.optString("coverUrl").isNotBlank()) {
@@ -718,7 +726,6 @@ class KomaNativePlugin : Plugin() {
                                     detailed.put("largeCoverUrl", manga.optString("largeCoverUrl"))
                                 }
 
-                                val chapters = detailed.optJSONArray("chapters") ?: JSONArray()
                                 val knownArr = entry.optJSONArray("knownChapterIds") ?: JSONArray()
                                 val knownSet = mutableSetOf<String>()
                                 for (k in 0 until knownArr.length()) knownSet.add(knownArr.getString(k))
@@ -749,9 +756,11 @@ class KomaNativePlugin : Plugin() {
                                     nextKnown.put(cid)
                                     if (cid !in readSet) unread++
                                 }
-                                CheckedResult(mKey, detailed, nextKnown, chapters.length(), unread, perMangaUpdates)
+                                CheckedResult(mKey, true, detailed, nextKnown, chapters.length(), unread, perMangaUpdates)
                             }
-                        }.getOrNull()
+                        }.getOrElse {
+                            CheckedResult(mKey, false, null, null, 0, 0, emptyList())
+                        }
                     }
                 }
             }.awaitAll().filterNotNull()
@@ -763,12 +772,19 @@ class KomaNativePlugin : Plugin() {
             val currentLib = JSONArray(readFileText("library.json", "[]"))
             val currentUpdates = JSONArray(readFileText("updates.json", "[]"))
             val newUpdates = mutableListOf<JSONObject>()
+            val failedKeys = JSONArray()
+            val okKeys = JSONArray()
             val now = System.currentTimeMillis()
 
             for (i in 0 until currentLib.length()) {
                 val entry = currentLib.getJSONObject(i)
                 val key = entry.optString("key")
                 val checked = checkedMap[key] ?: continue
+                if (!checked.ok || checked.detailedManga == null || checked.nextKnown == null) {
+                    failedKeys.put(key)
+                    continue
+                }
+                okKeys.put(key)
                 entry.put("manga", checked.detailedManga)
                 entry.put("knownChapterIds", checked.nextKnown)
                 entry.put("totalChapters", checked.totalChapters)
@@ -787,7 +803,13 @@ class KomaNativePlugin : Plugin() {
             }
             writeFileText("library.json", currentLib.toString())
             writeFileText("updates.json", combined.toString())
-            JSONObject().put("updates", combined).put("library", currentLib).put("newCount", newUpdates.size).toString()
+            JSONObject()
+                .put("updates", combined)
+                .put("library", currentLib)
+                .put("newCount", newUpdates.size)
+                .put("failedKeys", failedKeys)
+                .put("okKeys", okKeys)
+                .toString()
         }
     }
 
@@ -1201,7 +1223,8 @@ class KomaNativePlugin : Plugin() {
               "syncUsername":"",
               "syncAuthHash":"",
               "syncKeyJwk":"",
-              "deletedLibraryKeys":{}
+              "deletedLibraryKeys":{},
+              "persistedFailedKeys":{}
             }
         """.trimIndent()
     }

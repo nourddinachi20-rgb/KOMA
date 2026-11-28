@@ -1,5 +1,15 @@
 import type { FilterMetadata, Manga, MangaChapter, MangaPage, MangaTag, SortOrder, SourceInfo } from '../types';
 
+export const KNOWN_BROKEN_SOURCES = new Set([
+  'MANGAPARK',
+  'MANGASEE',
+  'MANGALIFE',
+  'COMICK',
+  'REAPER_SCANS',
+  'FLAMESCANS',
+  'LUMINOUSSCANS',
+]);
+
 export function getProxiedImageUrl(
   engineUrl: string | null,
   source: string | null | undefined,

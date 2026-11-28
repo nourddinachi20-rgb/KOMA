@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { LibraryEntry, Manga } from '../types';
-import { fetchMangaDetails, fetchMangaList } from '../utils/api';
+import { fetchMangaDetails, fetchMangaList, KNOWN_BROKEN_SOURCES } from '../utils/api';
 import { CustomSelect } from './CustomSelect';
 import { MigrateModal } from './MigrateModal';
 
@@ -157,7 +157,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
   const sortedSources = useMemo(
     () =>
       sources
-        .filter((s) => !s.isBroken)
+        .filter((s) => !s.isBroken && !KNOWN_BROKEN_SOURCES.has(s.name))
         .sort((a, b) => {
           const aPin = settings.pinnedSources.includes(a.name) ? 0 : 1;
           const bPin = settings.pinnedSources.includes(b.name) ? 0 : 1;

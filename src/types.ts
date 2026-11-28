@@ -243,6 +243,7 @@ export interface AppSettings {
   syncAuthHash?: string;
   syncKeyJwk?: string;
   deletedLibraryKeys?: Record<string, number>;
+  persistedFailedKeys?: Record<string, boolean>;
 }
 
 export interface UpdateCheckResult {
@@ -321,6 +322,8 @@ declare global {
         updates: UpdateEntry[];
         library: LibraryEntry[];
         newCount: number;
+        failedKeys?: string[];
+        okKeys?: string[];
       }>;
       clearUpdates: () => Promise<UpdateEntry[]>;
       getStats: () => Promise<ReadingStats>;

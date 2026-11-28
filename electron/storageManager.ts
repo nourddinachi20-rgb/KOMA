@@ -98,6 +98,7 @@ export interface AppSettings {
   syncAuthHash?: string;
   syncKeyJwk?: string;
   deletedLibraryKeys?: Record<string, number>;
+  persistedFailedKeys?: Record<string, boolean>;
 }
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -150,6 +151,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   syncAuthHash: '',
   syncKeyJwk: '',
   deletedLibraryKeys: {},
+  persistedFailedKeys: {},
 };
 
 const DEFAULT_STATS: ReadingStats = {
@@ -239,6 +241,8 @@ class StorageManager {
     updates: UpdateEntry[];
     library: LibraryEntry[];
     newCount: number;
+    failedKeys: string[];
+    okKeys: string[];
   }> {
     const snapshotLib = this.getLibrary();
     const targets = snapshotLib.filter((e) => {
@@ -248,13 +252,15 @@ class StorageManager {
 
     const checkedMap = new Map<
       string,
-      {
-        manga: Record<string, unknown>;
-        knownChapterIds: string[];
-        totalChapters: number;
-        unreadCount: number;
-        updates: UpdateEntry[];
-      }
+      | {
+          ok: true;
+          manga: Record<string, unknown>;
+          knownChapterIds: string[];
+          totalChapters: number;
+          unreadCount: number;
+          updates: UpdateEntry[];
+        }
+      | { ok: false }
     >();
 
     const batchSize = 6;
@@ -270,16 +276,23 @@ class StorageManager {
               body: JSON.stringify({ manga: entry.manga }),
               signal: AbortSignal.timeout(15_000),
             });
-            if (!res.ok) return;
+            if (!res.ok) {
+              checkedMap.set(entry.key, { ok: false });
+              return;
+            }
             const data = (await res.json()) as { manga: Record<string, unknown> };
             const fullManga = data.manga;
+            const chapters = Array.isArray(fullManga?.chapters)
+              ? (fullManga.chapters as Array<Record<string, unknown>>)
+              : [];
+            if (!fullManga || chapters.length === 0) {
+              checkedMap.set(entry.key, { ok: false });
+              return;
+            }
             if (!fullManga.coverUrl && entry.manga.coverUrl) fullManga.coverUrl = entry.manga.coverUrl;
             if (!fullManga.largeCoverUrl && entry.manga.largeCoverUrl) {
               fullManga.largeCoverUrl = entry.manga.largeCoverUrl;
             }
-            const chapters = Array.isArray(fullManga.chapters)
-              ? (fullManga.chapters as Array<Record<string, unknown>>)
-              : [];
             const chapterIds = chapters.map((c) => String(c.id));
             const prevKnown = new Set(entry.knownChapterIds ?? []);
             const readSet = new Set(entry.readChapterIds ?? []);
@@ -302,6 +315,7 @@ class StorageManager {
 
             const unreadCount = chapters.filter((c) => !readSet.has(String(c.id))).length;
             checkedMap.set(entry.key, {
+              ok: true,
               manga: fullManga,
               knownChapterIds: chapterIds,
               totalChapters: chapters.length,
@@ -309,7 +323,7 @@ class StorageManager {
               updates: perMangaUpdates,
             });
           } catch {
-            // Skip failing source quietly
+            checkedMap.set(entry.key, { ok: false });
           }
         }),
       );
@@ -320,11 +334,18 @@ class StorageManager {
     const existingUpdates = this.getUpdates();
     const seenUpdateIds = new Set(existingUpdates.map((u) => u.id));
     const newlyFound: UpdateEntry[] = [];
+    const failedKeys: string[] = [];
+    const okKeys: string[] = [];
     const now = Date.now();
 
     for (const entry of currentLib) {
       const res = checkedMap.get(entry.key);
       if (!res) continue;
+      if (!res.ok) {
+        failedKeys.push(entry.key);
+        continue;
+      }
+      okKeys.push(entry.key);
       entry.manga = res.manga;
       entry.knownChapterIds = res.knownChapterIds;
       entry.totalChapters = res.totalChapters;
@@ -341,7 +362,13 @@ class StorageManager {
     this.writeJson('library.json', currentLib);
     const mergedUpdates = [...newlyFound, ...existingUpdates].slice(0, 300);
     this.writeJson('updates.json', mergedUpdates);
-    return { updates: mergedUpdates, library: currentLib, newCount: newlyFound.length };
+    return {
+      updates: mergedUpdates,
+      library: currentLib,
+      newCount: newlyFound.length,
+      failedKeys,
+      okKeys,
+    };
   }
 
   getStats(): ReadingStats {

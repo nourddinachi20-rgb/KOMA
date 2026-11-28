@@ -219,6 +219,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   syncAuthHash: '',
   syncKeyJwk: '',
   deletedLibraryKeys: {},
+  persistedFailedKeys: {},
 };
 
 const ALLOWED_LOCALES = new Set(['en', 'fr', 'ar', '']);
@@ -381,13 +382,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   exploreCache: {},
   chapterPagesCache: {},
   failedSourceKeys: {},
-  markSourceFailed: (key, failed) =>
-    set((s) => {
-      const next = { ...s.failedSourceKeys };
-      if (failed) next[key] = true;
-      else delete next[key];
-      return { failedSourceKeys: next };
-    }),
+  markSourceFailed: (key, failed) => {
+    const next = { ...get().failedSourceKeys };
+    if (failed) next[key] = true;
+    else delete next[key];
+    set({ failedSourceKeys: next });
+    void get().updateSettings({ persistedFailedKeys: next });
+  },
   syncSession: null,
   syncLastAt: 0,
   syncBusy: false,
@@ -560,18 +561,21 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       const full = await fetchMangaDetails(engineStatus.url!, manga);
-      set((s) => {
-        const nextFailed = { ...s.failedSourceKeys };
-        delete nextFailed[key];
-        return {
-          detailsCache: { ...s.detailsCache, [key]: full },
-          failedSourceKeys: nextFailed,
-        };
-      });
+      const isEmptyBroken = (full.chapters?.length ?? 0) === 0;
+      const nextFailed = { ...get().failedSourceKeys };
+      if (isEmptyBroken) nextFailed[key] = true;
+      else delete nextFailed[key];
+      set((s) => ({
+        detailsCache: { ...s.detailsCache, [key]: full },
+        failedSourceKeys: nextFailed,
+      }));
+      void get().updateSettings({ persistedFailedKeys: nextFailed });
       return full;
     })()
       .catch(() => {
-        set((s) => ({ failedSourceKeys: { ...s.failedSourceKeys, [key]: true } }));
+        const nextFailed = { ...get().failedSourceKeys, [key]: true };
+        set({ failedSourceKeys: nextFailed });
+        void get().updateSettings({ persistedFailedKeys: nextFailed });
         return null;
       })
       .finally(() => {
@@ -797,6 +801,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       engineStatus,
       appVersion,
       syncSession: restoredSync,
+      failedSourceKeys: { ...(mergedSettings.persistedFailedKeys ?? {}) },
       tutorialOpen: needsTutorial,
       showWhatsNew: needsWhatsNew,
       bootStage: engineStatus.ready ? (cacheIsFresh ? 'ready' : 'warming') : 'engine',
@@ -936,6 +941,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ checkingUpdates: true });
     try {
       const res = await window.noctis.checkUpdates();
+      const nextFailed = { ...get().failedSourceKeys };
+      for (const k of res.okKeys ?? []) delete nextFailed[k];
+      for (const k of res.failedKeys ?? []) nextFailed[k] = true;
+
       await enqueueMigrationCommit(async () => {
         const tombstones = get().settings.deletedLibraryKeys ?? {};
         const cleanLib = res.library.filter((entry) => {
@@ -943,10 +952,20 @@ export const useAppStore = create<AppState>((set, get) => ({
           if (!deletedAt) return true;
           return deletedAt < (entry.lastReadAt ?? entry.addedAt ?? 0);
         });
-        set({ updates: res.updates, library: cleanLib });
+        set({ updates: res.updates, library: cleanLib, failedSourceKeys: nextFailed });
       });
-      if (res.newCount > 0) {
+      void get().updateSettings({ persistedFailedKeys: nextFailed });
+
+      const failedCount = (res.failedKeys ?? []).length;
+      if (res.newCount > 0 && failedCount > 0) {
+        get().notify(
+          `${res.newCount} new chapter${res.newCount === 1 ? '' : 's'} · ${failedCount} failed (broken source)`,
+          'info',
+        );
+      } else if (res.newCount > 0) {
         get().notify(`${res.newCount} new chapter${res.newCount === 1 ? '' : 's'} found`, 'success');
+      } else if (failedCount > 0) {
+        get().notify(`${failedCount} manga failed to update — migrate broken sources`, 'error');
       } else {
         get().notify('Library is up to date', 'info');
       }
