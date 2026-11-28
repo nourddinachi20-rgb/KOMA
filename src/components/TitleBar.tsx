@@ -24,9 +24,13 @@ const isDesktopShell =
   typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
 
 export function TitleBar() {
-  const { activeView, setActiveView, closeManga, setCommandOpen, engineStatus, sources, updates } =
+  const { activeView, setActiveView, closeManga, setCommandOpen, engineStatus, sources, settings, updates } =
     useAppStore();
   const t = useT();
+
+  const visibleSourcesCount = settings.showNsfw
+    ? sources.length
+    : sources.filter((s) => s.contentType !== 'HENTAI').length;
 
   const navItems: Array<{ id: NavView; label: string; icon: typeof Home }> = [
     { id: 'home', label: t.nav.home, icon: Home },
@@ -43,19 +47,19 @@ export function TitleBar() {
   };
 
   return (
-    <header className="app-drag pt-safe relative z-40 flex min-h-14 w-full shrink-0 items-center justify-between px-4 sm:px-5 select-none">
+    <header className="app-drag pt-safe relative z-40 flex min-h-14 w-full shrink-0 items-center justify-between gap-2 px-3 sm:px-5 select-none">
       {/* Brand + live engine pill */}
-      <div className="app-no-drag flex items-center gap-3">
+      <div className="app-no-drag flex shrink-0 items-center gap-2 sm:gap-3">
         <button
           onClick={() => navigateTo('home')}
-          className="group flex items-center gap-2.5 text-left focus:outline-none cursor-pointer"
+          className="group flex shrink-0 items-center gap-2 text-left focus:outline-none cursor-pointer"
         >
-          <KomaLogo className="h-7 w-7 transition-transform duration-300 group-hover:scale-105" />
-          <span className="text-[13px] font-bold tracking-[0.26em] text-white/95">KOMA</span>
+          <KomaLogo className="h-7 w-7 shrink-0 transition-transform duration-300 group-hover:scale-105" />
+          <span className="text-[13px] font-bold tracking-[0.2em] lg:tracking-[0.26em] text-white/95">KOMA</span>
         </button>
 
         <div
-          className="hidden sm:flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] px-2.5 py-1 text-[10px] font-mono-tech text-zinc-400"
+          className="hidden lg:flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] px-2.5 py-1 text-[10px] font-mono-tech text-zinc-400"
           title={engineStatus.error || 'Bundled Verified Source Engine'}
         >
           <span
@@ -69,7 +73,7 @@ export function TitleBar() {
           />
           <span>
             {engineStatus.ready
-              ? `${sources.length || engineStatus.sourcesCount}`
+              ? `${sources.length > 0 ? visibleSourcesCount : engineStatus.sourcesCount}`
               : engineStatus.error
                 ? 'OFF'
                 : '...'}
@@ -78,7 +82,7 @@ export function TitleBar() {
       </div>
 
       {/* Centered Floating Glass Pill Navigation (Tablets & Desktop) */}
-      <nav className="app-no-drag oled-glass-subtle hidden md:flex items-center gap-1 rounded-full p-1">
+      <nav className="app-no-drag oled-glass-subtle hidden md:flex items-center gap-0.5 lg:gap-1 rounded-full p-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = activeView === item.id;
@@ -87,7 +91,7 @@ export function TitleBar() {
             <button
               key={item.id}
               onClick={() => navigateTo(item.id)}
-              className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors duration-200 cursor-pointer ${
+              className={`relative flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-full px-2.5 lg:px-3.5 py-1.5 text-[11px] lg:text-xs font-medium transition-colors duration-200 cursor-pointer ${
                 active ? '' : 'text-zinc-400 hover:text-white'
               }`}
               style={active ? { color: 'var(--koma-accent-fg)' } : undefined}
@@ -100,8 +104,8 @@ export function TitleBar() {
                   className="absolute inset-0 rounded-full shadow-[0_2px_16px_rgba(var(--koma-accent-rgb),0.22)]"
                 />
               )}
-              <Icon className="relative z-10 h-3.5 w-3.5" strokeWidth={2} />
-              <span className="relative z-10">{item.label}</span>
+              <Icon className="relative z-10 h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+              <span className="relative z-10 whitespace-nowrap">{item.label}</span>
               {badge > 0 && (
                 <span
                   className={`relative z-10 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 font-mono-tech text-[9px] font-bold leading-none ${
@@ -117,14 +121,15 @@ export function TitleBar() {
       </nav>
 
       {/* Right actions */}
-      <div className="app-no-drag flex items-center gap-2">
+      <div className="app-no-drag flex shrink-0 items-center gap-1.5 sm:gap-2">
         <button
           onClick={() => setCommandOpen(true)}
-          className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs text-zinc-400 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white cursor-pointer"
+          title={t.nav.search}
+          className="flex shrink-0 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 lg:px-3 py-1.5 text-xs text-zinc-400 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white cursor-pointer"
         >
-          <Search className="h-3.5 w-3.5" />
-          <span className="hidden md:inline">{t.nav.search}</span>
-          <kbd className="hidden lg:inline rounded bg-white/[0.07] px-1.5 py-0.5 font-mono-tech text-[10px] text-zinc-400">
+          <Search className="h-3.5 w-3.5 shrink-0" />
+          <span className="hidden lg:inline whitespace-nowrap">{t.nav.search}</span>
+          <kbd className="hidden xl:inline rounded bg-white/[0.07] px-1.5 py-0.5 font-mono-tech text-[10px] text-zinc-400">
             Ctrl K
           </kbd>
         </button>

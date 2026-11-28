@@ -300,6 +300,7 @@ interface KotatsuHistoryJson {
   created_at?: number;
   chapter_id?: number | string;
   page?: number;
+  percent?: number;
   chapters?: number;
   manga: KotatsuMangaJson;
 }
@@ -372,12 +373,15 @@ function parseKotatsuZip(entries: Map<string, Uint8Array>, sources: SourceInfo[]
     const manga = kotatsuMangaToKoma(h.manga, sources);
     const key = `${manga.source}::${manga.id}`;
     histByManga.set(key, h);
+    const totalCh = typeof h.chapters === 'number' && h.chapters > 0 ? h.chapters : 0;
+    const pct = typeof h.percent === 'number' && h.percent > 0 ? Math.min(1, h.percent) : 0;
+    const approxCh = totalCh > 0 && pct > 0 ? Math.max(1, Math.min(totalCh, Math.round(pct * totalCh))) : 0;
     history.push({
       key,
       manga,
       chapterId: String(h.chapter_id ?? '0'),
-      chapterNumber: 0,
-      chapterTitle: 'Last Read',
+      chapterNumber: approxCh,
+      chapterTitle: approxCh > 0 ? `~Ch. ${approxCh}` : 'Last Read',
       pageIndex: Math.max(0, h.page ?? 0),
       totalPages: 0,
       updatedAt: h.updated_at || h.created_at || Date.now(),

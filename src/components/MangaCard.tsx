@@ -92,7 +92,7 @@ export const MangaCard = memo(function MangaCard({
 
   const handleImgError = () => {
     if (retryCount + 1 < candidateSrcs.length) {
-      const delayMs = 350 * (retryCount + 1);
+      const delayMs = 160 * (retryCount + 1);
       retryTimerRef.current = window.setTimeout(() => {
         setRetryCount((c) => c + 1);
       }, delayMs);
@@ -233,14 +233,30 @@ export const MangaCard = memo(function MangaCard({
       </div>
 
       <div className="mt-2.5 px-0.5">
-        <h3 className="line-clamp-1 text-[13px] font-medium tracking-[-0.01em] text-zinc-100 transition-colors group-hover:text-white">
+        <h3
+          dir="auto"
+          style={{ unicodeBidi: 'plaintext' }}
+          className="line-clamp-1 text-[13px] font-medium tracking-[-0.01em] text-zinc-100 transition-colors group-hover:text-white"
+        >
           {manga.title}
         </h3>
         {subtitle ? (
-          <p className="mt-0.5 line-clamp-1 font-mono-tech text-[11px] text-zinc-500">{subtitle}</p>
+          <p
+            dir="auto"
+            style={{ unicodeBidi: 'plaintext' }}
+            className="mt-0.5 line-clamp-1 font-mono-tech text-[11px] text-zinc-500"
+          >
+            {subtitle}
+          </p>
         ) : (
           manga.authors?.[0] && (
-            <p className="mt-0.5 line-clamp-1 text-[11px] text-zinc-500">{manga.authors[0]}</p>
+            <p
+              dir="auto"
+              style={{ unicodeBidi: 'plaintext' }}
+              className="mt-0.5 line-clamp-1 text-[11px] text-zinc-500"
+            >
+              {manga.authors[0]}
+            </p>
           )
         )}
       </div>

@@ -209,6 +209,23 @@ export function CommandPalette() {
                 </div>
               )}
 
+              {query.trim().length > 0 && localMatches.length === 0 && remoteGroups.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-8 text-center text-zinc-500">
+                  {loading || query.trim().length >= 2 ? (
+                    <>
+                      <Loader2 className="mb-2 h-5 w-5 animate-spin text-zinc-400" />
+                      <p className="text-xs text-zinc-400">
+                        {loading
+                          ? 'Searching pinned sources...'
+                          : 'Searching pinned sources or press Enter...'}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-zinc-500">Keep typing to search all pinned sources...</p>
+                  )}
+                </div>
+              )}
+
               {localMatches.length > 0 && (
                 <div>
                   <h4 className="mb-2.5 px-1 font-mono-tech text-[10px] uppercase tracking-widest text-zinc-500">

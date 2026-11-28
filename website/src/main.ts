@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.1.1';
+const DEFAULT_VERSION = '1.1.2';
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -21,6 +21,16 @@ interface GitHubRelease {
 }
 
 const FALLBACK_RELEASES: GitHubRelease[] = [
+  {
+    tag_name: 'v1.1.2',
+    name: 'KOMA v1.1.2',
+    published_at: '2026-11-28T02:05:00Z',
+    body: `### Fixes
+- **Sync Payload Compaction & Worker Guards:** Compacts encrypted sync vaults (~12x smaller by omitting cached chapter lists) and prevents Cloudflare 500 / mobile Failed to fetch errors.
+- **Zero False Broken Mihon/Komikku Flags & Faster Updates:** Stops flagging working Mihon/Komikku entries as broken, recognizes \`COMICK_FUN\`/\`MANHUARM\`/\`MANGA_DEMON\` as dead, and skips dead/unverified entries quickly in Update Library.
+- **Migration Duplicate Merge & Kotatsu Progress:** Merges cross-source duplicate titles during migration and computes \`~Ch. X\` from Kotatsu backup history.
+- **Light Paper, Arabic RTL & Tablet Polish:** Fixed Light Paper Explore/Spotlight/Reader/Splash contrast, RTL title truncation, 768px tablet navbar layout, empty Sign In hints, and Download Modal labels.`,
+  },
   {
     tag_name: 'v1.1.1',
     name: 'KOMA v1.1.1',

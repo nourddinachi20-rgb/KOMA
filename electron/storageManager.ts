@@ -162,6 +162,19 @@ const DEFAULT_STATS: ReadingStats = {
   genreCounts: {},
 };
 
+const KNOWN_DEAD_SOURCES = new Set([
+  'MANGAPARK',
+  'MANGASEE',
+  'MANGALIFE',
+  'COMICK',
+  'COMICK_FUN',
+  'REAPER_SCANS',
+  'FLAMESCANS',
+  'LUMINOUSSCANS',
+  'MANHUARM',
+  'MANGA_DEMON',
+]);
+
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.bmp']);
 
 class StorageManager {
@@ -250,6 +263,21 @@ class StorageManager {
       return src && src !== 'LOCAL';
     });
 
+    const verifiedSet = new Set<string>();
+    try {
+      const sRes = await fetch(`${engineUrl}/api/sources?includeUnverified=false`, {
+        signal: AbortSignal.timeout(3_000),
+      });
+      if (sRes.ok) {
+        const sData = (await sRes.json()) as { sources?: Array<{ name?: string }> };
+        for (const s of sData.sources ?? []) {
+          if (s.name) verifiedSet.add(s.name);
+        }
+      }
+    } catch {
+      // Fallback: inspect targets without pre-filter
+    }
+
     const checkedMap = new Map<
       string,
       | {
@@ -263,9 +291,19 @@ class StorageManager {
       | { ok: false }
     >();
 
+    const liveTargets: LibraryEntry[] = [];
+    for (const entry of targets) {
+      const src = String(entry.manga.source ?? '');
+      if (KNOWN_DEAD_SOURCES.has(src) || (verifiedSet.size > 0 && !verifiedSet.has(src))) {
+        checkedMap.set(entry.key, { ok: false });
+      } else {
+        liveTargets.push(entry);
+      }
+    }
+
     const batchSize = 6;
-    for (let i = 0; i < targets.length; i += batchSize) {
-      const slice = targets.slice(i, i + batchSize);
+    for (let i = 0; i < liveTargets.length; i += batchSize) {
+      const slice = liveTargets.slice(i, i + batchSize);
       await Promise.all(
         slice.map(async (entry) => {
           try {

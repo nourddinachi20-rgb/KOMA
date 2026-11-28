@@ -199,13 +199,13 @@ export function SettingsView() {
         <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
           <SectionHeader
             id="account"
-            title="Account & Sync"
+            title={t.settings.accountTitle}
             summary={
               syncSession
                 ? `Signed in as ${syncSession.username}`
                 : settings.syncUsername
                   ? `Saved user: ${settings.syncUsername} · Enter password to sync`
-                  : 'Username + Password · Zero-Knowledge Encrypted'
+                  : t.settings.accountSummary
             }
           />
           {openSection === 'account' && (
@@ -570,7 +570,7 @@ export function SettingsView() {
         <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
           <SectionHeader
             id="backup"
-            title="Backup & Storage"
+            title={t.settings.backupSectionTitle}
             summary="KOMA (.json), Kotatsu (.bk), Mihon & Komikku (.tachibk)"
           />
           {openSection === 'backup' && (
@@ -612,11 +612,11 @@ export function SettingsView() {
         <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
           <SectionHeader
             id="trackers"
-            title="AniList & Discord"
+            title={t.settings.trackersSectionTitle}
             summary={
               trackerConfig.anilistUser
                 ? `Connected: ${trackerConfig.anilistUser.name}`
-                : 'Optional progress sync'
+                : t.settings.trackersOptional
             }
           />
           {openSection === 'trackers' && (

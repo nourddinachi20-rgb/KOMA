@@ -119,6 +119,8 @@ export function TutorialOverlay() {
   const {
     bootStage,
     tutorialOpen,
+    settings,
+    syncSession,
     setActiveView,
     closeManga,
     setCommandOpen,
@@ -128,7 +130,10 @@ export function TutorialOverlay() {
   const t = useT();
   const [stepIdx, setStepIdx] = useState(0);
 
-  const visible = bootStage === 'ready' && tutorialOpen;
+  const visible =
+    bootStage === 'ready' &&
+    tutorialOpen &&
+    Boolean(settings.hasSeenWelcome || syncSession);
   const step = TOUR_STEPS[stepIdx] ?? TOUR_STEPS[0];
   const Icon = step.icon;
   const isLast = stepIdx === TOUR_STEPS.length - 1;

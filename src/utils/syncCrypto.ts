@@ -16,11 +16,12 @@ const enc = new TextEncoder();
 const dec = new TextDecoder();
 
 function toBase64(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) {
-    bin += String.fromCharCode(bytes[i]);
+  const chunks: string[] = [];
+  const step = 0x8000;
+  for (let i = 0; i < bytes.length; i += step) {
+    chunks.push(String.fromCharCode(...bytes.subarray(i, i + step)));
   }
-  return btoa(bin);
+  return btoa(chunks.join(''));
 }
 
 function fromBase64(b64: string): Uint8Array {

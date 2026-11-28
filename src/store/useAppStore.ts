@@ -303,8 +303,14 @@ async function mergeAndPersistVault(
       const readIds = Array.from(
         new Set([...(prev.readChapterIds ?? []), ...(l.readChapterIds ?? [])]),
       );
+      const useRemote = Boolean(l.lastReadAt && (!prev.lastReadAt || l.lastReadAt > prev.lastReadAt));
+      const baseEntry = useRemote ? l : prev;
       libMap.set(l.key, {
-        ...(l.lastReadAt && (!prev.lastReadAt || l.lastReadAt > prev.lastReadAt) ? l : prev),
+        ...baseEntry,
+        manga: {
+          ...baseEntry.manga,
+          chapters: baseEntry.manga.chapters ?? prev.manga.chapters ?? l.manga.chapters ?? null,
+        },
         categoryIds: Array.from(new Set([...prev.categoryIds, ...l.categoryIds])),
         readChapterIds: readIds,
       });
@@ -320,7 +326,15 @@ async function mergeAndPersistVault(
       continue;
     }
     const prev = histMap.get(h.key);
-    if (!prev || h.updatedAt > prev.updatedAt) histMap.set(h.key, h);
+    if (!prev || h.updatedAt > prev.updatedAt) {
+      histMap.set(h.key, {
+        ...h,
+        manga: {
+          ...h.manga,
+          chapters: h.manga.chapters ?? prev?.manga.chapters ?? null,
+        },
+      });
+    }
   }
 
   await window.noctis.applyBackupData({
@@ -871,16 +885,19 @@ export const useAppStore = create<AppState>((set, get) => ({
           'MANGABALL_EN';
         set({ sources, sourcesLoading: false, exploreSource: preferredFirst });
 
+        const welcomeReady = Boolean(get().settings.hasSeenWelcome || get().syncSession);
         if (cacheIsFresh) {
           set({ bootStage: 'ready' });
         } else if (validHomeCache) {
           set({ bootStage: 'ready' });
-          void get().loadHomeFeeds(currentHour, true);
+          if (welcomeReady) void get().loadHomeFeeds(currentHour, true);
         } else {
-          await Promise.race([
-            get().loadHomeFeeds(currentHour, true),
-            new Promise((r) => setTimeout(r, 1800)),
-          ]);
+          if (welcomeReady) {
+            await Promise.race([
+              get().loadHomeFeeds(currentHour, true),
+              new Promise((r) => setTimeout(r, 1800)),
+            ]);
+          }
           set({ bootStage: 'ready' });
         }
 
@@ -1036,87 +1053,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   migrateLibraryManga: async (oldKey, newManga) => {
-    await enqueueMigrationCommit(async () => {
-      const oldEntry = get().library.find((x) => x.key === oldKey);
-      const oldHist = get().history.find((h) => h.key === oldKey);
-      const prefetched = (await get().prefetchMangaDetails(newManga)) ?? newManga;
-      const newFull = preserveMigratedCover(oldEntry, prefetched);
-      const newChapters = newFull.chapters ?? [];
-
-      const readChapterIds: string[] = [];
-      if (oldEntry?.readChapterIds?.length) {
-        const oldChapters = oldEntry.manga.chapters ?? [];
-        const readNums = new Set(
-          oldChapters
-            .filter((c) => oldEntry.readChapterIds!.includes(c.id))
-            .map((c) => c.number),
-        );
-        for (const ch of newChapters) {
-          if (readNums.has(ch.number)) readChapterIds.push(ch.id);
-        }
-      }
-
-      const now = Date.now();
-      const newKey = `${newFull.source}::${newFull.id}`;
-      const newEntry: LibraryEntry = {
-        key: newKey,
-        manga: newFull,
-        categoryIds: oldEntry?.categoryIds ?? [get().categories[0]?.id ?? 'reading'],
-        addedAt: oldEntry?.addedAt ?? now,
-        lastReadAt: now,
-        totalChapters: newChapters.length,
-        knownChapterIds: newChapters.map((c) => c.id),
-        readChapterIds,
-        unreadCount: newChapters.filter((c) => !readChapterIds.includes(c.id)).length,
-      };
-
-      if (oldEntry) {
-        await window.noctis.removeLibrary(oldKey);
-      }
-      const library = await window.noctis.upsertLibrary(newEntry);
-
-      let history = get().history;
-      if (oldHist) {
-        const matched =
-          newChapters.find((c) => c.number === oldHist.chapterNumber) ?? newChapters[0];
-        if (matched) {
-          await window.noctis.removeHistory(oldKey);
-          history = await window.noctis.upsertHistory({
-            key: newKey,
-            manga: newFull,
-            chapterId: matched.id,
-            chapterNumber: matched.number,
-            chapterTitle: matched.title || `Chapter ${matched.number || ''}`,
-            pageIndex: oldHist.pageIndex,
-            totalPages: oldHist.totalPages,
-            updatedAt: now,
-          });
-        }
-      }
-
-      const nextTombstones = { ...(get().settings.deletedLibraryKeys ?? {}) };
-      if (oldKey !== newKey) nextTombstones[oldKey] = now;
-      delete nextTombstones[newKey];
-      await get().updateSettings({ deletedLibraryKeys: pruneTombstones(nextTombstones) });
-
-      const currentSelected = get().selectedManga;
-      const shouldUpdateSelected =
-        currentSelected && `${currentSelected.source}::${currentSelected.id}` === oldKey;
-      const nextFailed = { ...get().failedSourceKeys };
-      delete nextFailed[oldKey];
-      delete nextFailed[newKey];
-
-      set({
-        library,
-        history,
-        failedSourceKeys: nextFailed,
-        ...(shouldUpdateSelected ? { selectedManga: newFull } : {}),
-      });
-      if (shouldUpdateSelected) {
-        get().notify(`Migrated to ${newFull.source}`, 'success');
-      }
-      scheduleAutoSync();
-    });
+    const state = get();
+    const oldEntry = state.library.find((x) => x.key === oldKey);
+    const prefetched = (await state.prefetchMangaDetails(newManga)) ?? newManga;
+    const preserved = preserveMigratedCover(oldEntry, prefetched);
+    await state.migrateLibraryBatch([{ oldKey, newManga: preserved }]);
+    const currentSelected = get().selectedManga;
+    if (currentSelected && `${currentSelected.source}::${currentSelected.id}` === oldKey) {
+      const targetKey = `${preserved.source}::${preserved.id}`;
+      const updated = get().library.find((e) => e.key === targetKey)?.manga ?? preserved;
+      set({ selectedManga: updated });
+      get().notify(`Migrated to ${updated.source}`, 'success');
+    }
   },
 
   migrateLibraryBatch: async (pairs) => {
@@ -1135,10 +1083,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       for (const { oldKey, newManga } of pairs) {
         const oldEntry = libMap.get(oldKey);
         const oldHist = histMap.get(oldKey);
-        const preservedManga = preserveMigratedCover(oldEntry, newManga);
-        const newChapters = preservedManga.chapters ?? [];
+        const newKey = `${newManga.source}::${newManga.id}`;
+        const existingDest = oldKey !== newKey ? libMap.get(newKey) : undefined;
 
-        const readChapterIds: string[] = [];
+        const preservedManga = preserveMigratedCover(oldEntry ?? existingDest, newManga);
+        const newChapters =
+          preservedManga.chapters ?? existingDest?.manga.chapters ?? [];
+        if (!preservedManga.chapters && newChapters.length > 0) {
+          preservedManga.chapters = newChapters;
+        }
+
+        const mappedOldReadIds: string[] = [];
         if (oldEntry?.readChapterIds?.length) {
           const oldChapters = oldEntry.manga.chapters ?? [];
           const readNums = new Set(
@@ -1147,19 +1102,31 @@ export const useAppStore = create<AppState>((set, get) => ({
               .map((c) => c.number),
           );
           for (const ch of newChapters) {
-            if (readNums.has(ch.number)) readChapterIds.push(ch.id);
+            if (readNums.has(ch.number)) mappedOldReadIds.push(ch.id);
           }
         }
+        const readChapterIds = Array.from(
+          new Set([...(existingDest?.readChapterIds ?? []), ...mappedOldReadIds]),
+        );
+        const categoryIds = Array.from(
+          new Set([
+            ...(existingDest?.categoryIds ?? []),
+            ...(oldEntry?.categoryIds ?? []),
+            ...((!existingDest?.categoryIds?.length && !oldEntry?.categoryIds?.length) ? [defaultCat] : []),
+          ]),
+        );
 
-        const newKey = `${preservedManga.source}::${preservedManga.id}`;
         const newEntry: LibraryEntry = {
           key: newKey,
           manga: preservedManga,
-          categoryIds: oldEntry?.categoryIds ?? [defaultCat],
-          addedAt: oldEntry?.addedAt ?? now,
-          lastReadAt: now,
-          totalChapters: newChapters.length,
-          knownChapterIds: newChapters.map((c) => c.id),
+          categoryIds,
+          addedAt: Math.min(existingDest?.addedAt ?? now, oldEntry?.addedAt ?? now),
+          lastReadAt: Math.max(existingDest?.lastReadAt ?? 0, oldEntry?.lastReadAt ?? 0, now),
+          totalChapters: newChapters.length || existingDest?.totalChapters || 0,
+          knownChapterIds:
+            newChapters.length > 0
+              ? newChapters.map((c) => c.id)
+              : existingDest?.knownChapterIds ?? [],
           readChapterIds,
           unreadCount: newChapters.filter((c) => !readChapterIds.includes(c.id)).length,
         };
@@ -1174,8 +1141,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (oldHist) {
           const matched =
             newChapters.find((c) => c.number === oldHist.chapterNumber) ?? newChapters[0];
-          if (matched) {
-            histMap.delete(oldKey);
+          const existingDestHist = histMap.get(newKey);
+          histMap.delete(oldKey);
+          if (matched && (!existingDestHist || oldHist.updatedAt >= existingDestHist.updatedAt)) {
             histMap.set(newKey, {
               key: newKey,
               manga: preservedManga,
@@ -1184,7 +1152,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               chapterTitle: matched.title || `Chapter ${matched.number || ''}`,
               pageIndex: oldHist.pageIndex,
               totalPages: oldHist.totalPages,
-              updatedAt: now,
+              updatedAt: oldHist.updatedAt || now,
             });
           }
         }

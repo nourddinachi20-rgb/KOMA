@@ -93,7 +93,7 @@ export function SplashScreen() {
           initial={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 1.035 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-black text-white select-none"
+          className="keep-dark fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-black text-white select-none"
         >
           {/* GPU-only angled drifting manga cover wall (zero CSS filter shaders per image) */}
           <div
@@ -216,7 +216,9 @@ export function SplashScreen() {
                 />
                 <span>{stageLabel}</span>
                 {engineStatus.ready && sources.length > 0 && (
-                  <span className="text-zinc-500">· {sources.length}</span>
+                  <span className="text-zinc-500">
+                    · {settings.showNsfw ? sources.length : sources.filter((s) => s.contentType !== 'HENTAI').length}
+                  </span>
                 )}
               </div>
             </motion.div>

@@ -112,7 +112,7 @@ function buildSearchQueries(entry: LibraryEntry): string[] {
 }
 
 export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalProps) {
-  const { engineStatus, sources, settings, migrateLibraryBatch, syncPushNow, syncSession, notify } =
+  const { engineStatus, sources, library, settings, migrateLibraryBatch, syncPushNow, syncSession, notify } =
     useAppStore();
 
   const [sessionEntries, setSessionEntries] = useState<LibraryEntry[]>([]);
@@ -238,6 +238,36 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
     }));
 
     try {
+      // Reuse an existing live copy in Library (e.g. merged Kotatsu + Mihon backup) instead of creating duplicates
+      const targetNorm = normalizeMatchTitle(entry.manga.title);
+      const healthyNames = new Set(sortedSources.map((s) => s.name));
+      const existingWorking = targetNorm
+        ? library.find(
+            (cand) =>
+              cand.key !== entry.key &&
+              healthyNames.has(cand.manga.source) &&
+              normalizeMatchTitle(cand.manga.title) === targetNorm,
+          )
+        : undefined;
+      if (existingWorking) {
+        const mergedTarget = existingWorking.manga.chapters?.length
+          ? existingWorking.manga
+          : (await fetchMangaDetails(engineUrl, existingWorking.manga).catch(() => null)) ??
+            existingWorking.manga;
+        pendingCommitRef.current.push({ oldKey: entry.key, newManga: mergedTarget });
+        await flushBatch(false);
+        const srcLabel =
+          sources.find((s) => s.name === mergedTarget.source)?.title ?? mergedTarget.source;
+        setRowStatus((prev) => ({
+          ...prev,
+          [entry.key]: {
+            status: 'done',
+            message: `Merged into ${srcLabel}`,
+          },
+        }));
+        return true;
+      }
+
       const baseQueries = buildSearchQueries(entry);
       const runPool = async (queries: string[], candidateEntry: LibraryEntry): Promise<Manga | null> => {
         let hit: Manga | null = null;

@@ -220,7 +220,7 @@ export function DownloadModal({
                         } cursor-pointer`}
                       >
                         <span className="truncate pr-2">
-                          Ch. {ch.number > 0 ? ch.number : idx + 1}
+                          {ch.number >= 0 ? `Ch. ${ch.number}` : `Ch. ${idx + 1}`}
                           {ch.title ? ` — ${ch.title}` : ''}
                         </span>
                         {already ? (

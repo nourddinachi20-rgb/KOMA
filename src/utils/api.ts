@@ -5,10 +5,26 @@ export const KNOWN_BROKEN_SOURCES = new Set([
   'MANGASEE',
   'MANGALIFE',
   'COMICK',
+  'COMICK_FUN',
   'REAPER_SCANS',
   'FLAMESCANS',
   'LUMINOUSSCANS',
+  'MANHUARM',
+  'MANGA_DEMON',
 ]);
+
+/** Strips HTML tags, markdown links/bold markers, and divider rules from synopses. */
+export function cleanDescriptionMarkup(raw?: string | null): string {
+  if (!raw) return '';
+  return raw
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\s*-{3,}\s*/g, ' · ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export function getProxiedImageUrl(
   engineUrl: string | null,

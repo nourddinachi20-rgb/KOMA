@@ -10,6 +10,7 @@ export interface Translations {
     offline: string;
     sources: string;
     settings: string;
+    back: string;
     search: string;
     more: string;
     sourcesCount: string;
@@ -127,6 +128,11 @@ export interface Translations {
     updateAndRestart: string;
     whatsNew: string;
     interactiveTutorial: string;
+    accountTitle: string;
+    accountSummary: string;
+    backupSectionTitle: string;
+    trackersSectionTitle: string;
+    trackersOptional: string;
   };
   reader: {
     chapters: string;
@@ -170,6 +176,7 @@ const EN: Translations = {
     offline: 'Offline',
     sources: 'Sources',
     settings: 'Settings',
+    back: 'Back',
     search: 'Search',
     more: 'More',
     sourcesCount: 'SOURCES',
@@ -287,6 +294,11 @@ const EN: Translations = {
     updateAndRestart: 'Update & Restart',
     whatsNew: "What's New",
     interactiveTutorial: 'Interactive Tutorial',
+    accountTitle: 'Account & Sync',
+    accountSummary: 'Username + Password · Zero-Knowledge Encrypted',
+    backupSectionTitle: 'Backup & Storage',
+    trackersSectionTitle: 'AniList & Discord',
+    trackersOptional: 'Optional progress sync',
   },
   reader: {
     chapters: 'Chapters',
@@ -330,6 +342,7 @@ const FR: Translations = {
     offline: 'Hors-ligne',
     sources: 'Sources',
     settings: 'Paramètres',
+    back: 'Retour',
     search: 'Rechercher',
     more: 'Plus',
     sourcesCount: 'SOURCES',
@@ -447,6 +460,11 @@ const FR: Translations = {
     updateAndRestart: 'Mettre à jour & Redémarrer',
     whatsNew: 'Nouveautés',
     interactiveTutorial: 'Tutoriel interactif',
+    accountTitle: 'Compte & Synchronisation',
+    accountSummary: 'Identifiant + Mot de passe · Chiffrement Zero-Knowledge',
+    backupSectionTitle: 'Sauvegarde & Stockage',
+    trackersSectionTitle: 'AniList & Discord',
+    trackersOptional: 'Suivi de progression optionnel',
   },
   reader: {
     chapters: 'Chapitres',
@@ -490,6 +508,7 @@ const AR: Translations = {
     offline: 'بدون نت',
     sources: 'المصادر',
     settings: 'الإعدادات',
+    back: 'رجوع',
     search: 'بحث',
     more: 'المزيد',
     sourcesCount: 'مصدر',
@@ -607,6 +626,11 @@ const AR: Translations = {
     updateAndRestart: 'تحديث وإعادة التشغيل',
     whatsNew: 'ما الجديد',
     interactiveTutorial: 'الجولة التعريفية',
+    accountTitle: 'الحساب والمزامنة',
+    accountSummary: 'اسم المستخدم وكلمة المرور · تشفير تام بدون خادم',
+    backupSectionTitle: 'النسخ الاحتياطي والتخزين',
+    trackersSectionTitle: 'AniList و Discord',
+    trackersOptional: 'مزامنة اختيارية للتقدم',
   },
   reader: {
     chapters: 'الفصول',

@@ -39,6 +39,14 @@ export function ExploreView() {
   const [error, setError] = useState<string | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
+  const nsfwFilteredCount = useMemo(
+    () =>
+      settings.showNsfw
+        ? sources.length
+        : sources.filter((s) => s.contentType !== 'HENTAI').length,
+    [sources, settings.showNsfw],
+  );
+
   const visibleSources = useMemo(() => {
     const q = sourceSearch.trim().toLowerCase();
     return sources
@@ -209,7 +217,7 @@ export function ExploreView() {
           <input
             value={sourceSearch}
             onChange={(e) => setSourceSearch(e.target.value)}
-            placeholder={`Filter ${sources.length} working sources...`}
+            placeholder={`Filter ${nsfwFilteredCount} working sources...`}
             className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] py-2 pl-9 pr-3 text-xs text-white placeholder-zinc-500 focus:border-white/25 focus:outline-none"
           />
         </div>

@@ -630,7 +630,7 @@ export function ReaderView() {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`fixed inset-0 z-50 flex flex-col bg-black text-white select-none ${
+      className={`keep-dark fixed inset-0 z-50 flex flex-col bg-black text-white select-none ${
         zoom > 1 ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : ''
       }`}
     >
@@ -642,7 +642,7 @@ export function ReaderView() {
           className="oled-glass-subtle fixed left-4 top-4 z-30 flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs text-zinc-300 opacity-35 transition hover:opacity-100 hover:text-white cursor-pointer"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Back</span>
+          <span>{t.nav.back}</span>
         </button>
       )}
 

@@ -13,7 +13,7 @@ import {
   Star,
 } from 'lucide-react';
 import { HOUR_MS, useAppStore } from '../store/useAppStore';
-import { getProxiedImageUrl } from '../utils/api';
+import { cleanDescriptionMarkup, getProxiedImageUrl } from '../utils/api';
 import { extractAmbientColor } from '../utils/colorExtractor';
 import { useT } from '../utils/i18n';
 import { MangaCard } from './MangaCard';
@@ -24,6 +24,7 @@ export function HomeView() {
     sources,
     history,
     library,
+    syncSession,
     settings,
     homeHeroItems,
     homeRows,
@@ -52,10 +53,11 @@ export function HomeView() {
   }, []);
 
   useEffect(() => {
-    if (engineStatus.ready && sources.length > 0) {
+    const canFetch = Boolean(settings.hasSeenWelcome || syncSession);
+    if (canFetch && engineStatus.ready && sources.length > 0) {
       void loadHomeFeeds(hourEpoch, false);
     }
-  }, [engineStatus.ready, sources.length, hourEpoch, loadHomeFeeds]);
+  }, [settings.hasSeenWelcome, syncSession, engineStatus.ready, sources.length, hourEpoch, loadHomeFeeds]);
 
   const fallbackHero = useMemo(() => {
     if (homeHeroItems.length > 0) return homeHeroItems;
@@ -140,7 +142,7 @@ export function HomeView() {
     }
   };
 
-  const cleanHeroDesc = currentHero?.description?.replace(/<[^>]+>/g, '').trim() ?? '';
+  const cleanHeroDesc = cleanDescriptionMarkup(currentHero?.description);
 
   return (
     <div className="relative h-full w-full overflow-y-auto pb-20">
@@ -159,7 +161,7 @@ export function HomeView() {
           <div
             onMouseEnter={() => setHeroPaused(true)}
             onMouseLeave={() => setHeroPaused(false)}
-            className="relative overflow-hidden rounded-[28px] border border-white/[0.1] bg-[#050508] shadow-[0_24px_70px_rgba(0,0,0,0.85)]"
+            className="keep-dark relative overflow-hidden rounded-[28px] border border-white/[0.1] bg-[#050508] shadow-[0_24px_70px_rgba(0,0,0,0.85)]"
           >
             {heroBackdropThumb && (
               <div className="pointer-events-none absolute inset-0 overflow-hidden">

@@ -19,9 +19,24 @@ export function WelcomeAuthModal() {
 
   const [username, setUsername] = useState(settings.syncUsername ?? '');
   const [password, setPassword] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
 
   const visible =
     bootStage !== 'hydrating' && !syncSession && !settings.hasSeenWelcome;
+
+  const validateCreds = (): boolean => {
+    const clean = username.trim();
+    if (clean.length < 3) {
+      setFormError('Enter a username (at least 3 characters).');
+      return false;
+    }
+    if (password.length < 6) {
+      setFormError('Enter a password (at least 6 characters).');
+      return false;
+    }
+    setFormError(null);
+    return true;
+  };
 
   const finishWelcome = async () => {
     await updateSettings({ hasSeenWelcome: true });
@@ -35,22 +50,28 @@ export function WelcomeAuthModal() {
   };
 
   const handleSignIn = async () => {
+    if (!validateCreds()) return;
     try {
       await syncSignIn('', username, password);
       await finishWelcome();
       setPassword('');
     } catch (e) {
-      notify(e instanceof Error ? e.message : 'Sign in failed', 'error');
+      const msg = e instanceof Error ? e.message : 'Sign in failed';
+      setFormError(msg);
+      notify(msg, 'error');
     }
   };
 
   const handleCreateAccount = async () => {
+    if (!validateCreds()) return;
     try {
       await syncCreateAccount('', username, password);
       await finishWelcome();
       setPassword('');
     } catch (e) {
-      notify(e instanceof Error ? e.message : 'Create account failed', 'error');
+      const msg = e instanceof Error ? e.message : 'Create account failed';
+      setFormError(msg);
+      notify(msg, 'error');
     }
   };
 
@@ -92,15 +113,16 @@ export function WelcomeAuthModal() {
               transition={{ duration: 0.5, delay: 0.45, ease }}
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!syncBusy && username.trim() && password) {
-                  void handleSignIn();
-                }
+                if (!syncBusy) void handleSignIn();
               }}
               className="mt-9 w-full space-y-3"
             >
               <input
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  if (formError) setFormError(null);
+                }}
                 placeholder="Username"
                 autoComplete="username"
                 autoCapitalize="none"
@@ -110,17 +132,28 @@ export function WelcomeAuthModal() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (formError) setFormError(null);
+                }}
                 placeholder="Password"
                 autoComplete="current-password"
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3.5 text-sm text-white placeholder-zinc-500 transition focus:border-white/30 focus:bg-white/[0.07] focus:outline-none"
               />
 
+              {formError && (
+                <p role="alert" className="px-1 text-center text-xs text-rose-400">
+                  {formError}
+                </p>
+              )}
+
               <div className="space-y-2.5 pt-2">
                 <button
                   type="submit"
-                  disabled={syncBusy || !username.trim() || !password}
-                  className="accent-bg inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-xs font-semibold leading-none tracking-wide transition hover:opacity-90 disabled:opacity-40 cursor-pointer"
+                  disabled={syncBusy}
+                  className={`accent-bg inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-xs font-semibold leading-none tracking-wide transition hover:opacity-90 disabled:opacity-40 cursor-pointer ${
+                    !username.trim() || !password ? 'opacity-65' : ''
+                  }`}
                 >
                   {syncBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   <span>Sign In</span>
@@ -128,9 +161,11 @@ export function WelcomeAuthModal() {
 
                 <button
                   type="button"
-                  disabled={syncBusy || !username.trim() || !password}
+                  disabled={syncBusy}
                   onClick={() => void handleCreateAccount()}
-                  className="inline-flex w-full items-center justify-center rounded-full border border-white/15 bg-transparent py-3.5 text-xs font-medium leading-none tracking-wide text-zinc-200 transition hover:border-white/30 hover:text-white disabled:opacity-40 cursor-pointer"
+                  className={`inline-flex w-full items-center justify-center rounded-full border border-white/15 bg-transparent py-3.5 text-xs font-medium leading-none tracking-wide text-zinc-200 transition hover:border-white/30 hover:text-white disabled:opacity-40 cursor-pointer ${
+                    !username.trim() || !password ? 'opacity-65' : ''
+                  }`}
                 >
                   Create Account
                 </button>

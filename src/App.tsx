@@ -33,6 +33,9 @@ const ReaderView = lazy(() =>
 
 export function App() {
   const {
+    bootStage,
+    settings,
+    syncSession,
     activeView,
     setActiveView,
     selectedManga,
@@ -43,6 +46,7 @@ export function App() {
     importDroppedPaths,
   } = useAppStore();
   const [draggingFiles, setDraggingFiles] = useState(false);
+  const welcomePending = bootStage !== 'hydrating' && !syncSession && !settings.hasSeenWelcome;
 
   useEffect(() => {
     void bootstrap();
@@ -105,32 +109,36 @@ export function App() {
       onDrop={handleDrop}
       className="relative flex h-screen w-screen flex-col overflow-hidden bg-black text-white"
     >
-      {!selectedManga && <TitleBar />}
+      {!selectedManga && !welcomePending && <TitleBar />}
 
       <main className="relative flex-1 overflow-hidden">
-        {/* Keep core views mounted for 0ms instant tab switching & scroll preservation */}
-        <div className={activeView === 'home' && !selectedManga ? 'h-full w-full' : 'hidden'}>
-          <HomeView />
-        </div>
-        <div className={activeView === 'library' && !selectedManga ? 'h-full w-full' : 'hidden'}>
-          <LibraryView />
-        </div>
-        <div className={activeView === 'explore' && !selectedManga ? 'h-full w-full' : 'hidden'}>
-          <ExploreView />
-        </div>
+        {!welcomePending && (
+          <>
+            {/* Keep core views mounted for 0ms instant tab switching & scroll preservation */}
+            <div className={activeView === 'home' && !selectedManga ? 'h-full w-full' : 'hidden'}>
+              <HomeView />
+            </div>
+            <div className={activeView === 'library' && !selectedManga ? 'h-full w-full' : 'hidden'}>
+              <LibraryView />
+            </div>
+            <div className={activeView === 'explore' && !selectedManga ? 'h-full w-full' : 'hidden'}>
+              <ExploreView />
+            </div>
 
-        <Suspense fallback={null}>
-          {!selectedManga && activeView === 'updates' && <UpdatesView />}
-          {!selectedManga && activeView === 'downloads' && <DownloadsView />}
-          {!selectedManga && activeView === 'sources' && <SourcesView />}
-          {!selectedManga && activeView === 'settings' && <SettingsView />}
-          {selectedManga && (
-            <MangaDetailsPage key={`manga-${selectedManga.source}-${selectedManga.id}`} />
-          )}
-        </Suspense>
+            <Suspense fallback={null}>
+              {!selectedManga && activeView === 'updates' && <UpdatesView />}
+              {!selectedManga && activeView === 'downloads' && <DownloadsView />}
+              {!selectedManga && activeView === 'sources' && <SourcesView />}
+              {!selectedManga && activeView === 'settings' && <SettingsView />}
+              {selectedManga && (
+                <MangaDetailsPage key={`manga-${selectedManga.source}-${selectedManga.id}`} />
+              )}
+            </Suspense>
+          </>
+        )}
       </main>
 
-      <MobileBottomNav />
+      {!welcomePending && <MobileBottomNav />}
 
       {/* Drag-and-Drop CBZ/Folder Overlay */}
       {draggingFiles && (

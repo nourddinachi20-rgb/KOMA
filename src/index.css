@@ -67,8 +67,20 @@
 :root[data-theme='paper'] .bg-white\/\[0\.03\],
 :root[data-theme='paper'] .bg-white\/\[0\.04\],
 :root[data-theme='paper'] .bg-white\/\[0\.05\],
+:root[data-theme='paper'] .bg-white\/\[0\.04\],
+:root[data-theme='paper'] .bg-white\/\[0\.05\],
 :root[data-theme='paper'] .bg-white\/\[0\.06\] {
   background-color: rgba(9, 9, 13, 0.045) !important;
+}
+:root[data-theme='paper'] .bg-\[\#060609\],
+:root[data-theme='paper'] .bg-\[\#09090D\],
+:root[data-theme='paper'] .bg-\[\#0C0C10\] {
+  background-color: #ffffff !important;
+}
+:root[data-theme='paper'] .bg-black\/40,
+:root[data-theme='paper'] .bg-black\/50,
+:root[data-theme='paper'] .md\:bg-black\/50 {
+  background-color: rgba(255, 255, 255, 0.85) !important;
 }
 :root[data-theme='paper'] .border-white\/\[0\.05\],
 :root[data-theme='paper'] .border-white\/\[0\.06\],
@@ -97,6 +109,48 @@
 :root[data-theme='paper'] .bg-white.text-black {
   background-color: #09090d !important;
   color: #ffffff !important;
+}
+:root[data-theme='paper'] .bg-white.text-black .text-black {
+  color: #ffffff !important;
+}
+:root[data-theme='paper'] .bg-white.text-black .bg-black\/15 {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Preserve OLED dark surfaces inside Reader & Spotlight cover banners even on Light Paper */
+:root[data-theme='paper'] .keep-dark {
+  background-color: #050508 !important;
+  color: #ffffff !important;
+}
+:root[data-theme='paper'] .keep-dark.bg-black {
+  background-color: #000000 !important;
+}
+:root[data-theme='paper'] .keep-dark .text-white,
+:root[data-theme='paper'] .keep-dark .text-white\/95,
+:root[data-theme='paper'] .keep-dark .text-zinc-100,
+:root[data-theme='paper'] .keep-dark .text-zinc-200 {
+  color: #ffffff !important;
+}
+:root[data-theme='paper'] .keep-dark .text-zinc-300,
+:root[data-theme='paper'] .keep-dark .text-zinc-400 {
+  color: #d4d4d8 !important;
+}
+:root[data-theme='paper'] .keep-dark .bg-black\/40,
+:root[data-theme='paper'] .keep-dark .bg-black\/50 {
+  background-color: rgba(0, 0, 0, 0.52) !important;
+}
+:root[data-theme='paper'] .keep-dark .bg-white\/10,
+:root[data-theme='paper'] .keep-dark .bg-white\/\[0\.06\] {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+:root[data-theme='paper'] .keep-dark .oled-glass,
+:root[data-theme='paper'] .keep-dark .oled-glass-subtle {
+  background: rgba(18, 18, 22, 0.72) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+:root[data-theme='paper'] .keep-dark .bg-white.text-black {
+  background-color: #ffffff !important;
+  color: #000000 !important;
 }
 
 .accent-fg {

@@ -21,14 +21,16 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { AniListMediaInfo, Manga, MangaChapter } from '../types';
-import { getProxiedImageUrl } from '../utils/api';
+import { cleanDescriptionMarkup, getProxiedImageUrl } from '../utils/api';
 import { resolveCleanChapters } from '../utils/chapters';
 import { extractAmbientColor } from '../utils/colorExtractor';
+import { useT } from '../utils/i18n';
 import { CustomSelect } from './CustomSelect';
 import { DownloadModal } from './DownloadModal';
 import { MigrateModal } from './MigrateModal';
 
 export function MangaDetailsPage() {
+  const t = useT();
   const {
     selectedManga,
     closeManga,
@@ -289,7 +291,7 @@ export function MangaDetailsPage() {
     void updateLibraryCategories(libraryEntry.key, next);
   };
 
-  const cleanDesc = manga.description?.replace(/<[^>]+>/g, '').trim() ?? '';
+  const cleanDesc = cleanDescriptionMarkup(manga.description);
 
   return (
     <motion.div
@@ -330,7 +332,7 @@ export function MangaDetailsPage() {
             className="app-no-drag oled-glass-subtle flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-zinc-200 transition hover:border-white/25 hover:text-white cursor-pointer"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back</span>
+            <span>{t.nav.back}</span>
           </button>
 
           <div className="app-no-drag flex items-center gap-2">
@@ -415,12 +417,12 @@ export function MangaDetailsPage() {
               </span>
             </div>
 
-            <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
+            <h1 dir="auto" style={{ unicodeBidi: 'plaintext' }} className="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
               {manga.title}
             </h1>
 
             {manga.altTitles.length > 0 && (
-              <p className="mt-2 line-clamp-1 text-xs text-zinc-400">
+              <p dir="auto" style={{ unicodeBidi: 'plaintext' }} className="mt-2 line-clamp-1 text-xs text-zinc-400">
                 {manga.altTitles.slice(0, 3).join(' · ')}
               </p>
             )}
@@ -447,6 +449,8 @@ export function MangaDetailsPage() {
             {cleanDesc && (
               <div className="mt-5 max-w-3xl">
                 <p
+                  dir="auto"
+                  style={{ unicodeBidi: 'plaintext' }}
                   className={`text-sm leading-relaxed text-zinc-300/90 ${
                     expandDesc ? '' : 'line-clamp-4'
                   }`}
@@ -566,7 +570,9 @@ export function MangaDetailsPage() {
                 Chapters{' '}
                 <span className="font-mono-tech text-sm font-normal text-zinc-500">
                   ({orderedChapters.length}
-                  {hiddenDupCount > 0 ? ` · ${hiddenDupCount} hidden` : ''})
+                  {hiddenDupCount > 0
+                    ? ` · ${hiddenDupCount} ${effectiveDupMode === 'collapse' ? 'collapsed' : 'dupes hidden'}`
+                    : ''})
                 </span>
               </h2>
               {loading && <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />}

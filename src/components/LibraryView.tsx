@@ -87,7 +87,6 @@ export function LibraryView() {
     return library.filter((entry) => {
       if (entry.manga.source === 'LOCAL') return false;
       if (failedSourceKeys[entry.key]) return true;
-      if (entry.manga.id.startsWith('mihon-')) return true;
       if (KNOWN_BROKEN_SOURCES.has(entry.manga.source)) return true;
       if (
         !entry.manga.coverUrl &&
@@ -100,6 +99,23 @@ export function LibraryView() {
       return !src || src.isBroken;
     });
   }, [library, sources, engineStatus.ready, failedSourceKeys]);
+
+  // Keep populated shelves in front of empty default shelves while preserving custom order
+  const orderedCategories = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of categories) counts.set(c.id, 0);
+    for (const e of library) {
+      for (const cid of e.categoryIds) {
+        counts.set(cid, (counts.get(cid) ?? 0) + 1);
+      }
+    }
+    return [...categories].sort((a, b) => {
+      const aEmpty = (counts.get(a.id) ?? 0) === 0 ? 1 : 0;
+      const bEmpty = (counts.get(b.id) ?? 0) === 0 ? 1 : 0;
+      if (aEmpty !== bEmpty) return aEmpty - bEmpty;
+      return a.order - b.order;
+    });
+  }, [categories, library]);
 
   const brokenKeySet = useMemo(
     () => new Set(brokenEntries.map((e) => e.key)),
@@ -366,7 +382,7 @@ export function LibraryView() {
           {t.library.all} ({library.length})
         </button>
 
-        {categories.map((cat) => {
+        {orderedCategories.map((cat) => {
           const count = library.filter((e) => e.categoryIds.includes(cat.id)).length;
           const active = activeCat === cat.id;
           return (

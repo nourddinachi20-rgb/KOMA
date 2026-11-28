@@ -682,6 +682,24 @@ class KomaNativePlugin : Plugin() {
             if (src.isNotBlank() && src != "LOCAL") targets.add(e)
         }
 
+        val knownDead = setOf(
+            "MANGAPARK", "MANGASEE", "MANGALIFE", "COMICK", "COMICK_FUN",
+            "REAPER_SCANS", "FLAMESCANS", "LUMINOUSSCANS", "MANHUARM", "MANGA_DEMON",
+        )
+        val verifiedSet = mutableSetOf<String>()
+        runCatching {
+            val sReq = Request.Builder().url("$engineUrl/api/sources?includeUnverified=false").build()
+            http.newBuilder().callTimeout(3, TimeUnit.SECONDS).build().newCall(sReq).execute().use { sRes ->
+                if (sRes.isSuccessful) {
+                    val arr = JSONObject(sRes.body?.string() ?: "{}").optJSONArray("sources") ?: JSONArray()
+                    for (idx in 0 until arr.length()) {
+                        val name = arr.getJSONObject(idx).optString("name")
+                        if (name.isNotBlank()) verifiedSet.add(name)
+                    }
+                }
+            }
+        }
+
         data class CheckedResult(
             val key: String,
             val ok: Boolean,
@@ -693,9 +711,20 @@ class KomaNativePlugin : Plugin() {
         )
 
         val checkedMap = mutableMapOf<String, CheckedResult>()
+        val liveTargets = mutableListOf<JSONObject>()
+        for (entry in targets) {
+            val mKey = entry.optString("key")
+            val src = entry.optJSONObject("manga")?.optString("source") ?: ""
+            if (src in knownDead || (verifiedSet.isNotEmpty() && src !in verifiedSet)) {
+                checkedMap[mKey] = CheckedResult(mKey, false, null, null, 0, 0, emptyList())
+            } else {
+                liveTargets.add(entry)
+            }
+        }
+
         val sem = Semaphore(6)
         val results = coroutineScope {
-            targets.map { entry ->
+            liveTargets.map { entry ->
                 async<CheckedResult?>(Dispatchers.IO) {
                     sem.withPermit {
                         val mKey = entry.optString("key")
