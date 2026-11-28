@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -25,6 +25,7 @@ import { BulkMigrateModal } from './BulkMigrateModal';
 import { CustomSelect, closeAllPopovers, useClosePopoversListener } from './CustomSelect';
 import { DownloadsView } from './DownloadsView';
 import { MangaCard } from './MangaCard';
+import { PullToRefreshZone, ScrollToTopButton } from './ScrollControls';
 import { UpdatesView } from './UpdatesView';
 
 export function LibraryView() {
@@ -61,6 +62,17 @@ export function LibraryView() {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [brokenOnly, setBrokenOnly] = useState(false);
   const [bulkMigrateOpen, setBulkMigrateOpen] = useState(false);
+  const libScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!bulkMigrateOpen) return;
+    const onBackIntercept = (e: Event) => {
+      e.preventDefault();
+      setBulkMigrateOpen(false);
+    };
+    window.addEventListener('koma:back-intercept', onBackIntercept);
+    return () => window.removeEventListener('koma:back-intercept', onBackIntercept);
+  }, [bulkMigrateOpen]);
   const [showFilters, setShowFilters] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -514,8 +526,14 @@ export function LibraryView() {
         </div>
       )}
 
-      {/* Grid */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      {/* Grid with Pull-to-Refresh + Scroll-to-Top */}
+      <div className="relative flex-1 overflow-hidden">
+      <PullToRefreshZone
+        scrollRef={libScrollRef}
+        onRefresh={() => checkLibraryUpdates()}
+        refreshing={checkingUpdates}
+        className="h-full w-full overflow-y-auto p-4 sm:p-6"
+      >
         {filtered.length > 0 ? (
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {filtered.map((entry) => {
@@ -560,6 +578,8 @@ export function LibraryView() {
             </button>
           </div>
         )}
+      </PullToRefreshZone>
+      <ScrollToTopButton scrollRef={libScrollRef} />
       </div>
 
       <BulkMigrateModal

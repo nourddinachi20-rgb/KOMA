@@ -3,20 +3,26 @@ import { Compass, Home, Library, Search, Settings, Minus, Square, X } from 'luci
 import { useAppStore } from '../store/useAppStore';
 import type { NavView } from '../types';
 import { useT } from '../utils/i18n';
+import { triggerHaptic, triggerScrollToTop } from './ScrollControls';
 
 const isDesktopShell =
   typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron');
 
 export function TitleBar() {
-  const { setActiveView, closeManga } = useAppStore();
+  const { activeView, selectedManga, setActiveView, closeManga } = useAppStore();
 
   return (
     <header className="app-drag pt-safe relative z-40 flex min-h-14 w-full shrink-0 items-center justify-center px-4 select-none">
       <button
         type="button"
         onClick={() => {
-          closeManga();
-          setActiveView('home');
+          triggerHaptic(6);
+          if (!selectedManga && activeView === 'home') {
+            triggerScrollToTop();
+          } else {
+            closeManga();
+            setActiveView('home');
+          }
         }}
         className="app-no-drag cursor-pointer py-1 text-center focus:outline-none"
       >
@@ -55,8 +61,15 @@ export function TitleBar() {
 }
 
 export function MobileBottomNav() {
-  const { activeView, setActiveView, closeManga, setCommandOpen, commandOpen, updates } =
-    useAppStore();
+  const {
+    activeView,
+    selectedManga,
+    setActiveView,
+    closeManga,
+    setCommandOpen,
+    commandOpen,
+    updates,
+  } = useAppStore();
   const t = useT();
 
   const activeCol = commandOpen
@@ -80,6 +93,19 @@ export function MobileBottomNav() {
   }, [activeCol]);
 
   const go = (view: NavView) => {
+    triggerHaptic(6);
+    if (
+      !selectedManga &&
+      !commandOpen &&
+      (activeView === view || (view === 'settings' && activeView === 'sources'))
+    ) {
+      if (view === 'settings' && activeView === 'sources') {
+        setActiveView('settings');
+      } else {
+        triggerScrollToTop();
+      }
+      return;
+    }
     closeManga();
     setActiveView(view);
   };

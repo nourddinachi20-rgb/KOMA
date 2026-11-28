@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { Bell, Download, Loader2, Play, RefreshCw, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { getProxiedImageUrl } from '../utils/api';
 import { useT } from '../utils/i18n';
+import { PullToRefreshZone, ScrollToTopButton } from './ScrollControls';
 
 function dayLabel(ts: number): string {
   const d = new Date(ts);
@@ -18,6 +19,7 @@ function dayLabel(ts: number): string {
 
 export function UpdatesView({ embedded = false }: { embedded?: boolean }) {
   const t = useT();
+  const updatesScrollRef = useRef<HTMLDivElement | null>(null);
   const {
     updates,
     checkingUpdates,
@@ -90,7 +92,13 @@ export function UpdatesView({ embedded = false }: { embedded?: boolean }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="relative flex-1 overflow-hidden">
+      <PullToRefreshZone
+        scrollRef={updatesScrollRef}
+        onRefresh={() => checkLibraryUpdates()}
+        refreshing={checkingUpdates}
+        className="h-full w-full overflow-y-auto p-6"
+      >
         {grouped.length > 0 ? (
           <div className="mx-auto max-w-5xl space-y-8">
             {grouped.map((group) => (
@@ -194,6 +202,8 @@ export function UpdatesView({ embedded = false }: { embedded?: boolean }) {
             </p>
           </div>
         )}
+      </PullToRefreshZone>
+      <ScrollToTopButton scrollRef={updatesScrollRef} />
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.1.8';
+const DEFAULT_VERSION = '1.1.9';
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -21,6 +21,16 @@ interface GitHubRelease {
 }
 
 const FALLBACK_RELEASES: GitHubRelease[] = [
+  {
+    tag_name: 'v1.1.9',
+    name: 'KOMA v1.1.9',
+    published_at: '2026-11-28T20:40:00Z',
+    body: `### New Features
+- **Pull-to-Refresh & Scroll-to-Top:** Swipe down from top to refresh Home, Library, Updates, Explore, and Sources with a smooth animated pill; jump back to top via the floating button or by re-tapping the active tab.
+- **Mobile Back History Stack & Double-Back Exit:** Hardware/gesture Back now returns to your exact previous view (\`Sources -> Settings\`, \`Explore -> Library\`, closes Search/drawers/modals first, and confirms before exiting Home).
+### Improvements
+- **Explore Mobile Header & Drawer:** Uncluttered 3-tier layout (no squished search placeholder), swipe-left-to-close on the Sources drawer, micro haptics, and disabled WebView blue tap highlights.`,
+  },
   {
     tag_name: 'v1.1.8',
     name: 'KOMA v1.1.8',

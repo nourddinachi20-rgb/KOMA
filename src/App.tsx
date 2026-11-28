@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { FolderPlus } from 'lucide-react';
 import { useAppStore } from './store/useAppStore';
 import { TitleBar, MobileBottomNav } from './components/TitleBar';
@@ -31,30 +31,49 @@ export function App() {
     settings,
     syncSession,
     activeView,
-    setActiveView,
+    goBackView,
     selectedManga,
     closeManga,
     readerSession,
     closeReader,
+    commandOpen,
+    setCommandOpen,
+    notify,
     bootstrap,
     importDroppedPaths,
   } = useAppStore();
   const [draggingFiles, setDraggingFiles] = useState(false);
+  const lastBackExitAtRef = useRef(0);
   const welcomePending = bootStage !== 'hydrating' && !syncSession && !settings.hasSeenWelcome;
 
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
 
-  // Hardware mouse Back side-button (button 3) & Electron browser-backward support
+  // Hardware Back button (Android edge/nav back) & mouse Back side-button (button 3)
   useEffect(() => {
     const goBack = () => {
-      if (readerSession) {
+      const interceptEv = new CustomEvent('koma:back-intercept', { cancelable: true });
+      window.dispatchEvent(interceptEv);
+      if (interceptEv.defaultPrevented) {
+        return;
+      }
+      if (commandOpen) {
+        setCommandOpen(false);
+      } else if (readerSession) {
         closeReader();
       } else if (selectedManga) {
         closeManga();
-      } else if (activeView !== 'home') {
-        setActiveView('home');
+      } else if (goBackView()) {
+        return;
+      } else {
+        const now = Date.now();
+        if (now - lastBackExitAtRef.current < 2000) {
+          void window.noctis.close();
+        } else {
+          lastBackExitAtRef.current = now;
+          notify('Press back again to exit KOMA', 'info');
+        }
       }
     };
 
@@ -71,7 +90,16 @@ export function App() {
       window.removeEventListener('mouseup', handleMouseUp);
       unsubIpc();
     };
-  }, [readerSession, selectedManga, activeView, closeReader, closeManga, setActiveView]);
+  }, [
+    commandOpen,
+    setCommandOpen,
+    readerSession,
+    selectedManga,
+    closeReader,
+    closeManga,
+    goBackView,
+    notify,
+  ]);
 
   const handleDragOver = (e: React.DragEvent) => {
     if (e.dataTransfer?.types?.includes('Files')) {

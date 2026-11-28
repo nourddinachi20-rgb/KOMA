@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.1.8';
+export const APP_VERSION = '1.1.9';
 
 export interface ChangelogSection {
   title: string;
@@ -6,10 +6,11 @@ export interface ChangelogSection {
   items: string[];
 }
 
-export const DEFAULT_WHATS_NEW_NOTES = `### Improvements
-- **Animated Bottom Navbar & Larger Icons:** Balanced bottom navbar proportions with larger icons and a smooth sliding accent light bar & glow pill when switching tabs.
-- **Explore & Sources Rework:** Organized Explore (source + search + Change source on top; Title-Cased sort labels + website mirror + refresh below) and Sources into clean scrolling headers with full Android status-bar safe-area support for the mobile Sources drawer.
-- **Clean Progress Labels:** Omits unknown chapter numbers and page totals instead of rendering \`Ch. ?\` or \`/?\`.`;
+export const DEFAULT_WHATS_NEW_NOTES = `### New Features
+- **Pull-to-Refresh & Scroll-to-Top:** Swipe down from the top on Home, Library, Updates, Explore, and Sources to refresh with an animated indicator, and use the floating Back-to-Top button (or re-tap the active nav tab) after scrolling deep.
+- **Step-by-Step Mobile Back History & Double-Back Exit:** Pressing Back now steps back through your previous screen, closes open drawers/Search/modals first, and asks before exiting Home.
+### Improvements
+- **Clean 3-Row Explore Header:** Dedicated full-width search bar, uncluttered Source + Change source row, and single-row Sort, Website mirror, Tags, and Refresh controls with swipe-left drawer closing and micro haptic feedback.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

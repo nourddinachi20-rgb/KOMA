@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowDownUp,
@@ -28,6 +28,7 @@ import { useT } from '../utils/i18n';
 import { CustomSelect } from './CustomSelect';
 import { DownloadModal } from './DownloadModal';
 import { MigrateModal } from './MigrateModal';
+import { ScrollToTopButton } from './ScrollControls';
 
 export function MangaDetailsPage() {
   const t = useT();
@@ -67,6 +68,18 @@ export function MangaDetailsPage() {
   const [expandDesc, setExpandDesc] = useState(false);
   const [migrateOpen, setMigrateOpen] = useState(false);
   const [coverTryIdx, setCoverTryIdx] = useState(0);
+  const detailsScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!downloadOpen && !migrateOpen) return;
+    const onBackIntercept = (e: Event) => {
+      e.preventDefault();
+      if (migrateOpen) setMigrateOpen(false);
+      else if (downloadOpen) setDownloadOpen(false);
+    };
+    window.addEventListener('koma:back-intercept', onBackIntercept);
+    return () => window.removeEventListener('koma:back-intercept', onBackIntercept);
+  }, [downloadOpen, migrateOpen]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -294,7 +307,9 @@ export function MangaDetailsPage() {
   const cleanDesc = cleanDescriptionMarkup(manga.description);
 
   return (
+    <div className="relative h-full w-full overflow-hidden bg-black">
     <motion.div
+      ref={detailsScrollRef}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8 }}
@@ -902,5 +917,7 @@ export function MangaDetailsPage() {
 
       <MigrateModal open={migrateOpen} manga={manga} onClose={() => setMigrateOpen(false)} />
     </motion.div>
+    <ScrollToTopButton scrollRef={detailsScrollRef} />
+    </div>
   );
 }

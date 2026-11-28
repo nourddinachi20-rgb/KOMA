@@ -17,6 +17,7 @@ import { cleanDescriptionMarkup, getProxiedImageUrl } from '../utils/api';
 import { extractAmbientColor } from '../utils/colorExtractor';
 import { useT } from '../utils/i18n';
 import { MangaCard } from './MangaCard';
+import { PullToRefreshZone, ScrollToTopButton } from './ScrollControls';
 
 function HeroCoverImg({
   src,
@@ -78,6 +79,7 @@ export function HomeView() {
     homeRows,
     detailsCache,
     loadHomeFeeds,
+    checkLibraryUpdates,
     prefetchMangaDetails,
     openManga,
     openReader,
@@ -94,6 +96,7 @@ export function HomeView() {
   const [ambientRgb, setAmbientRgb] = useState('255, 255, 255');
   const [aniHeroMeta, setAniHeroMeta] = useState<Record<string, AniListMediaInfo | null>>({});
   const aniRequestedRef = useRef<Set<string>>(new Set());
+  const homeScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const checkHour = setInterval(() => {
@@ -290,18 +293,23 @@ export function HomeView() {
         }));
 
   return (
-    <div className="relative h-full w-full overflow-y-auto pb-20">
-      {/* Zero-blur pure CSS radial ambient glow */}
-      {settings.ambientGlow && (
-        <div
-          className="pointer-events-none fixed left-1/2 top-0 h-[520px] w-[1080px] -translate-x-1/2 transition-colors duration-700"
-          style={{
-            background: `radial-gradient(ellipse at 50% 0%, rgba(${ambientRgb}, 0.22) 0%, rgba(${ambientRgb}, 0.06) 45%, transparent 72%)`,
-          }}
-        />
-      )}
+    <div className="relative h-full w-full overflow-hidden">
+      <PullToRefreshZone
+        scrollRef={homeScrollRef}
+        onRefresh={() => Promise.all([loadHomeFeeds(hourEpoch, true), checkLibraryUpdates()])}
+        className="relative h-full w-full overflow-y-auto pb-20"
+      >
+        {/* Zero-blur pure CSS radial ambient glow */}
+        {settings.ambientGlow && (
+          <div
+            className="pointer-events-none fixed left-1/2 top-0 h-[520px] w-[1080px] -translate-x-1/2 transition-colors duration-700"
+            style={{
+              background: `radial-gradient(ellipse at 50% 0%, rgba(${ambientRgb}, 0.22) 0%, rgba(${ambientRgb}, 0.06) 45%, transparent 72%)`,
+            }}
+          />
+        )}
 
-      <div className="relative z-10 mx-auto max-w-[1460px] space-y-8 px-4 pt-3 sm:space-y-10 sm:px-6">
+        <div className="relative z-10 mx-auto max-w-[1460px] space-y-8 px-4 pt-3 sm:space-y-10 sm:px-6">
         {currentHero ? (
           <div
             onMouseEnter={() => setHeroPaused(true)}
@@ -654,7 +662,9 @@ export function HomeView() {
             )}
           </section>
         ))}
-      </div>
+        </div>
+      </PullToRefreshZone>
+      <ScrollToTopButton scrollRef={homeScrollRef} />
     </div>
   );
 }

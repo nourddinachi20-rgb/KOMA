@@ -109,6 +109,7 @@ interface AppState {
   syncSignOut: () => Promise<void>;
 
   activeView: NavView;
+  viewHistory: NavView[];
   libraryTab: 'library' | 'updates' | 'offline';
   settingsFocusSection: string | null;
   exploreSource: string;
@@ -133,6 +134,7 @@ interface AppState {
   notify: (message: string, tone?: 'info' | 'success' | 'error') => void;
   dismissToast: (id: string) => void;
   setActiveView: (view: NavView) => void;
+  goBackView: () => boolean;
   setLibraryTab: (tab: 'library' | 'updates' | 'offline') => void;
   setSettingsFocusSection: (sec: string | null) => void;
   setExploreSource: (source: string) => void;
@@ -415,6 +417,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   syncBusy: false,
 
   activeView: 'home',
+  viewHistory: [],
   libraryTab: 'library',
   settingsFocusSection: null,
   exploreSource: 'MANGABALL_EN',
@@ -506,22 +509,67 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setActiveView: (view) => {
     closeAllPopovers();
-    if (view === 'updates') {
-      set({ activeView: 'library', libraryTab: 'updates' });
-    } else if (view === 'downloads') {
-      set({ activeView: 'library', libraryTab: 'offline' });
-    } else {
-      set({ activeView: view });
+    const current = get().activeView;
+    const nextView: NavView =
+      view === 'updates' || view === 'downloads' ? 'library' : view;
+    const nextTab =
+      view === 'updates'
+        ? 'updates'
+        : view === 'downloads'
+          ? 'offline'
+          : get().libraryTab;
+
+    if (nextView === current) {
+      if (view === 'updates' || view === 'downloads') {
+        set({ libraryTab: nextTab });
+      }
+      return;
     }
+
+    const hist = get().viewHistory;
+    const updatedHist =
+      hist[hist.length - 1] === current ? hist : [...hist, current].slice(-25);
+
+    set({
+      activeView: nextView,
+      viewHistory: updatedHist,
+      ...(view === 'updates' || view === 'downloads' ? { libraryTab: nextTab } : {}),
+    });
+  },
+  goBackView: () => {
+    closeAllPopovers();
+    const hist = get().viewHistory;
+    if (hist.length > 0) {
+      const prev = hist[hist.length - 1];
+      set({ activeView: prev, viewHistory: hist.slice(0, -1) });
+      return true;
+    }
+    if (get().activeView !== 'home') {
+      set({ activeView: 'home' });
+      return true;
+    }
+    return false;
   },
   setLibraryTab: (libraryTab) => {
     closeAllPopovers();
-    set({ activeView: 'library', libraryTab });
+    const current = get().activeView;
+    const hist = get().viewHistory;
+    const updatedHist =
+      current !== 'library' && hist[hist.length - 1] !== current
+        ? [...hist, current].slice(-25)
+        : hist;
+    set({ activeView: 'library', libraryTab, viewHistory: updatedHist });
   },
   setSettingsFocusSection: (settingsFocusSection) => set({ settingsFocusSection }),
   setExploreSource: (exploreSource) => {
     closeAllPopovers();
-    set({ exploreSource, activeView: 'explore' });
+    const current = get().activeView;
+    const hist = get().viewHistory;
+    const updatedHist =
+      current !== 'explore' && hist[hist.length - 1] !== current
+        ? [...hist, current].slice(-25)
+        : hist;
+    set({ exploreSource, activeView: 'explore', viewHistory: updatedHist });
   },
   openManga: (selectedManga) => {
     closeAllPopovers();

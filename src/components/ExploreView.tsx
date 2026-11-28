@@ -1,11 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Filter, Globe, Loader2, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Filter,
+  Globe,
+  Loader2,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  X,
+} from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { Manga, MangaTag, SortOrder } from '../types';
 import { fetchMangaList, fetchSourceFilters, updateSourceDomain } from '../utils/api';
 import { useT } from '../utils/i18n';
 import { CustomSelect } from './CustomSelect';
 import { MangaCard } from './MangaCard';
+import { PullToRefreshZone, ScrollToTopButton } from './ScrollControls';
 
 function formatSortLabel(order: string): string {
   return order
@@ -51,6 +61,18 @@ export function ExploreView() {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const drawerSwipeRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!mobileRailOpen) return;
+    const onBackIntercept = (e: Event) => {
+      e.preventDefault();
+      setMobileRailOpen(false);
+    };
+    window.addEventListener('koma:back-intercept', onBackIntercept);
+    return () => window.removeEventListener('koma:back-intercept', onBackIntercept);
+  }, [mobileRailOpen]);
 
   const nsfwFilteredCount = useMemo(
     () =>
@@ -222,6 +244,21 @@ export function ExploreView() {
 
       {/* Adaptive Source Rail: Safe-area Drawer on Phone, Docked Rail on Tablet/Desktop */}
       <aside
+        onTouchStart={(e) => {
+          if (e.touches.length === 1) {
+            drawerSwipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+          }
+        }}
+        onTouchEnd={(e) => {
+          const start = drawerSwipeRef.current;
+          drawerSwipeRef.current = null;
+          if (!start || !mobileRailOpen || e.changedTouches.length !== 1) return;
+          const dx = e.changedTouches[0].clientX - start.x;
+          const dy = Math.abs(e.changedTouches[0].clientY - start.y);
+          if (dx < -55 && dy < 50) {
+            setMobileRailOpen(false);
+          }
+        }}
         className={`pt-safe-drawer pb-safe-drawer fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-[300px] shrink-0 flex-col border-r border-white/[0.08] bg-[#060609] px-3.5 transition-transform duration-200 md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0 md:bg-black/50 md:p-3 ${
           mobileRailOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
@@ -310,108 +347,125 @@ export function ExploreView() {
         </div>
       </aside>
 
-      {/* Main Catalog Area: single scroll container so header scrolls away naturally */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="border-b border-white/[0.07] px-4 py-3 sm:px-6 sm:py-4">
-          {/* Row 1: Source on left, Search bar in middle, Change source button on right */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <h1 className="min-w-0 max-w-[115px] shrink-0 truncate text-sm font-bold tracking-tight text-white sm:max-w-[200px] sm:text-lg">
-              {currentSourceInfo?.title ?? exploreSource}
-            </h1>
+      {/* Main Catalog Area: single scroll container so header scrolls away + PullToRefresh + ScrollToTop */}
+      <div className="relative flex-1 overflow-hidden">
+        <PullToRefreshZone
+          scrollRef={scrollRef}
+          onRefresh={() => loadList(0, false, true)}
+          refreshing={loading && items.length > 0}
+          className="h-full w-full overflow-y-auto"
+        >
+          <div className="border-b border-white/[0.07] px-4 py-3 sm:px-6 sm:py-4">
+            {/* Row 1: Source on left, Change source button on right */}
+            <div className="flex items-center justify-between gap-3">
+              <h1 className="min-w-0 truncate text-base font-bold tracking-tight text-white sm:text-xl">
+                {currentSourceInfo?.title ?? exploreSource}
+              </h1>
 
+              <button
+                type="button"
+                onClick={() => setMobileRailOpen(true)}
+                className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-medium text-white transition hover:border-white/30 md:hidden cursor-pointer"
+              >
+                <ArrowLeftRight className="h-3.5 w-3.5 accent-fg" />
+                <span>Change source</span>
+              </button>
+            </div>
+
+            {/* Row 2: Full-width clean search bar */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 void loadList(0, false, true);
               }}
-              className="relative min-w-0 flex-1"
+              className="relative mt-2.5 w-full sm:max-w-md"
             >
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t.explore.searchPlaceholder}
-                className="w-full rounded-full border border-white/10 bg-white/[0.05] py-1.5 pl-8 pr-3 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none"
+                className="w-full rounded-full border border-white/10 bg-white/[0.05] py-2 pl-9 pr-8 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none"
               />
-            </form>
-
-            <button
-              type="button"
-              onClick={() => setMobileRailOpen(true)}
-              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-white transition hover:border-white/30 md:hidden cursor-pointer"
-            >
-              <Globe className="h-3.5 w-3.5 accent-fg" />
-              <span>Change source</span>
-            </button>
-          </div>
-
-          {/* Row 2: Sorting + Website choice + Tags on left, Refresh on right */}
-          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              {filterMeta && filterMeta.sortOrders.length > 0 && (
-                <CustomSelect
-                  value={sortOrder}
-                  onChange={(v) => setSortOrder(v as SortOrder)}
-                  options={filterMeta.sortOrders.map((o) => ({
-                    value: o,
-                    label: formatSortLabel(o),
-                  }))}
-                />
-              )}
-
-              {filterMeta && filterMeta.domains.length > 1 ? (
-                <CustomSelect
-                  value={filterMeta.domain}
-                  prefixIcon={<Globe className="h-3.5 w-3.5 text-zinc-400" />}
-                  onChange={async (dom) => {
-                    if (!engineStatus.url) return;
-                    const newDom = await updateSourceDomain(
-                      engineStatus.url,
-                      exploreSource,
-                      dom,
-                    );
-                    setFilterCache(exploreSource, { ...filterMeta, domain: newDom });
-                    void loadList(0, false, true);
-                  }}
-                  options={filterMeta.domains.map((d) => ({
-                    value: d,
-                    label: d,
-                  }))}
-                />
-              ) : currentDomain ? (
-                <span className="inline-flex max-w-[165px] items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-zinc-400">
-                  <Globe className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                  <span className="truncate">{currentDomain}</span>
-                </span>
-              ) : null}
-
-              {filterMeta && filterMeta.availableTags.length > 0 && (
+              {query && (
                 <button
                   type="button"
-                  onClick={() => setShowFilters((s) => !s)}
-                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition cursor-pointer ${
-                    showFilters || selectedTags.length > 0
-                      ? 'border-white/30 bg-white text-black font-medium'
-                      : 'border-white/10 bg-white/[0.05] text-zinc-300 hover:border-white/25'
-                  }`}
+                  onClick={() => setQuery('')}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-zinc-400 hover:text-white cursor-pointer"
                 >
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  <span>Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}</span>
+                  <X className="h-3.5 w-3.5" />
                 </button>
               )}
-            </div>
+            </form>
 
-            <button
-              type="button"
-              onClick={() => loadList(0, false, true)}
-              className="ml-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:text-white cursor-pointer"
-              title="Refresh"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
+            {/* Row 3: Sorting + Website choice + Tags on left, circular Refresh anchored right */}
+            <div className="mt-2.5 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+                {filterMeta && filterMeta.sortOrders.length > 0 && (
+                  <CustomSelect
+                    value={sortOrder}
+                    onChange={(v) => setSortOrder(v as SortOrder)}
+                    options={filterMeta.sortOrders.map((o) => ({
+                      value: o,
+                      label: formatSortLabel(o),
+                    }))}
+                  />
+                )}
+
+                {filterMeta && filterMeta.domains.length > 1 ? (
+                  <CustomSelect
+                    value={filterMeta.domain}
+                    prefixIcon={<Globe className="h-3.5 w-3.5 text-zinc-400" />}
+                    onChange={async (dom) => {
+                      if (!engineStatus.url) return;
+                      const newDom = await updateSourceDomain(
+                        engineStatus.url,
+                        exploreSource,
+                        dom,
+                      );
+                      setFilterCache(exploreSource, { ...filterMeta, domain: newDom });
+                      void loadList(0, false, true);
+                    }}
+                    options={filterMeta.domains.map((d) => ({
+                      value: d,
+                      label: d,
+                    }))}
+                  />
+                ) : currentDomain ? (
+                  <span className="inline-flex max-w-[165px] items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[11px] text-zinc-400">
+                    <Globe className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                    <span className="truncate">{currentDomain}</span>
+                  </span>
+                ) : null}
+
+                {filterMeta && filterMeta.availableTags.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters((s) => !s)}
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition cursor-pointer ${
+                      showFilters || selectedTags.length > 0
+                        ? 'border-white/30 bg-white text-black font-medium'
+                        : 'border-white/10 bg-white/[0.05] text-zinc-300 hover:border-white/25'
+                    }`}
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    <span>Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}</span>
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => loadList(0, false, true)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-300 transition hover:border-white/25 hover:text-white cursor-pointer"
+                title="Refresh"
+                aria-label="Refresh"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
-        </div>
 
         {showFilters && filterMeta && (
           <div className="border-b border-white/[0.07] bg-white/[0.02] px-4 py-3 sm:px-6">
@@ -511,6 +565,8 @@ export function ExploreView() {
             </>
           )}
         </div>
+        </PullToRefreshZone>
+        <ScrollToTopButton scrollRef={scrollRef} />
       </div>
     </div>
   );

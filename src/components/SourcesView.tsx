@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Loader2, Pin, RefreshCw, Search, Shield } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { SourceInfo } from '../types';
 import { fetchSources } from '../utils/api';
 import { useT } from '../utils/i18n';
+import { PullToRefreshZone, ScrollToTopButton } from './ScrollControls';
 
 const LANG_TABS = [
   { id: 'all', label: 'All' },
@@ -31,6 +32,7 @@ export function SourcesView() {
   const [showAllCf, setShowAllCf] = useState(false);
   const [allSources, setAllSources] = useState<SourceInfo[] | null>(null);
   const [localSources, setLocalSources] = useState<SourceInfo[] | null>(null);
+  const sourcesScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (sources.length > 0) {
@@ -114,7 +116,13 @@ export function SourcesView() {
   };
 
   return (
-    <div className="h-full w-full overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+    <div className="relative h-full w-full overflow-hidden">
+      <PullToRefreshZone
+        scrollRef={sourcesScrollRef}
+        onRefresh={() => verifyWorkingSources()}
+        refreshing={verifyingSources}
+        className="h-full w-full overflow-y-auto px-4 py-4 sm:px-6 sm:py-5"
+      >
       {/* Header scrolls naturally with the list */}
       <div className="border-b border-white/[0.07] pb-3.5">
         {/* Row 1: Back + Title + Count on left; 18+, All Sources, Refresh on right */}
@@ -292,6 +300,8 @@ export function SourcesView() {
           </div>
         )}
       </div>
+      </PullToRefreshZone>
+      <ScrollToTopButton scrollRef={sourcesScrollRef} />
     </div>
   );
 }
