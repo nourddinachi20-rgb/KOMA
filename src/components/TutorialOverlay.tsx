@@ -35,8 +35,8 @@ const TOUR_STEPS: TourStep[] = [
     description:
       'Browse catalogs by language or use Ctrl+K / Search to query pinned sources together.',
     highlights: [
-      'Pin or unpin your favorite sources from the Sources tab',
-      'Open Cloudflare unlock on any gated source directly from Sources',
+      'Pin or unpin your favorite sources from Settings → Sources',
+      'Open Cloudflare unlock on any gated source directly from Settings → Sources',
       'Tap Related or Recommended titles on a manga page to search across sources',
     ],
     targetView: 'explore',

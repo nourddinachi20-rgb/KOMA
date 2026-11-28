@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.1.5';
+const DEFAULT_VERSION = '1.1.6';
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -21,6 +21,14 @@ interface GitHubRelease {
 }
 
 const FALLBACK_RELEASES: GitHubRelease[] = [
+  {
+    tag_name: 'v1.1.6',
+    name: 'KOMA v1.1.6',
+    published_at: '2026-11-28T19:50:00Z',
+    body: `### Improvements
+- **Centered Header & 5-Button Bottom Navigation:** Larger centered KOMA header on top and \`[Home | Library | Search | Explore | Settings]\` bottom navbar with a distinct central Search button.
+- **Consolidated Library & Settings:** Moved **Updates** and **Offline** into **Library** tabs, merged **Sources** into **Settings**, removed the Custom accent picker, and added \`made by : VirtualDrum\` under the version footer.`,
+  },
   {
     tag_name: 'v1.1.5',
     name: 'KOMA v1.1.5',

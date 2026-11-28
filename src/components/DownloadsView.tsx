@@ -11,7 +11,7 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function DownloadsView() {
+export function DownloadsView({ embedded = false }: { embedded?: boolean }) {
   const t = useT();
   const { downloads, downloadProgress, deleteDownload, openReader, engineStatus, library, notify } =
     useAppStore();
@@ -126,9 +126,11 @@ export function DownloadsView() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-white/[0.07] px-6 py-4">
+      <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-3 sm:px-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">{t.downloads.title}</h1>
+          {!embedded && (
+            <h1 className="text-2xl font-bold tracking-tight text-white">{t.downloads.title}</h1>
+          )}
           <p className="font-mono-tech text-xs text-zinc-500">
             {downloads.length} {t.downloads.savedOffline} · {formatBytes(totalBytes)}
           </p>

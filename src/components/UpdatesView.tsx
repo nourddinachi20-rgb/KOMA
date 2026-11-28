@@ -16,7 +16,7 @@ function dayLabel(ts: number): string {
   return 'Earlier';
 }
 
-export function UpdatesView() {
+export function UpdatesView({ embedded = false }: { embedded?: boolean }) {
   const t = useT();
   const {
     updates,
@@ -54,9 +54,11 @@ export function UpdatesView() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.07] px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.07] px-4 py-3 sm:px-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">{t.updates.title}</h1>
+          {!embedded && (
+            <h1 className="text-2xl font-bold tracking-tight text-white">{t.updates.title}</h1>
+          )}
           <p className="font-mono-tech text-xs text-zinc-500">
             {updates.length} {t.updates.chaptersDiscovered}
           </p>

@@ -23,7 +23,9 @@ import { resolveCleanChapters } from '../utils/chapters';
 import { computeEffectiveReadingStats } from '../utils/readingStats';
 import { BulkMigrateModal } from './BulkMigrateModal';
 import { CustomSelect, closeAllPopovers, useClosePopoversListener } from './CustomSelect';
+import { DownloadsView } from './DownloadsView';
 import { MangaCard } from './MangaCard';
+import { UpdatesView } from './UpdatesView';
 
 export function LibraryView() {
   const t = useT();
@@ -31,6 +33,8 @@ export function LibraryView() {
     library,
     categories,
     history,
+    updates,
+    downloads,
     stats,
     sources,
     settings,
@@ -47,6 +51,8 @@ export function LibraryView() {
     openManga,
     notify,
     setActiveView,
+    libraryTab,
+    setLibraryTab,
   } = useAppStore();
 
   const [activeCat, setActiveCat] = useState<string>('all');
@@ -182,17 +188,56 @@ export function LibraryView() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-3 sm:px-6">
-        <div className="flex items-baseline gap-2.5 min-w-0">
-          <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-            {t.library.title}
-          </h1>
-          <span className="text-xs text-zinc-500">
-            {library.length}
-          </span>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-2.5 sm:px-6">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <button
+            type="button"
+            onClick={() => setLibraryTab('library')}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
+              libraryTab === 'library'
+                ? 'accent-bg'
+                : 'border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white'
+            }`}
+          >
+            <span>{t.library.title}</span>
+            <span className="opacity-70">{library.length}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setLibraryTab('updates')}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
+              libraryTab === 'updates'
+                ? 'accent-bg'
+                : 'border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white'
+            }`}
+          >
+            <span>{t.updates.title}</span>
+            {updates.length > 0 && (
+              <span className="rounded-full bg-white/15 px-1.5 py-0.2 font-mono-tech text-[10px]">
+                {updates.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setLibraryTab('offline')}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
+              libraryTab === 'offline'
+                ? 'accent-bg'
+                : 'border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white'
+            }`}
+          >
+            <span>{t.nav.offline}</span>
+            {downloads.length > 0 && (
+              <span className="opacity-70">{downloads.length}</span>
+            )}
+          </button>
         </div>
 
-        <div className="relative flex items-center gap-1.5">
+        {libraryTab === 'library' && (
+          <div className="relative flex items-center gap-1.5">
           <button
             onClick={() => setShowFilters((s) => !s)}
             title="Search & Sort"
@@ -275,9 +320,20 @@ export function LibraryView() {
             </>
           )}
         </div>
+        )}
       </div>
 
-      {/* Collapsible Filter / Search Bar (hidden by default so Library grid is front & center) */}
+      {libraryTab === 'updates' ? (
+        <div className="flex-1 overflow-hidden">
+          <UpdatesView embedded />
+        </div>
+      ) : libraryTab === 'offline' ? (
+        <div className="flex-1 overflow-hidden">
+          <DownloadsView embedded />
+        </div>
+      ) : (
+        <>
+          {/* Collapsible Filter / Search Bar (hidden by default so Library grid is front & center) */}
       {showFilters && (
         <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5 sm:px-6">
           <div className="relative flex-1 min-w-[160px]">
@@ -502,6 +558,8 @@ export function LibraryView() {
         entries={brokenEntries}
         onClose={() => setBulkMigrateOpen(false)}
       />
+        </>
+      )}
     </div>
   );
 }

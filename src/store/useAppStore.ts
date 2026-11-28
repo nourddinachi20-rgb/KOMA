@@ -109,6 +109,8 @@ interface AppState {
   syncSignOut: () => Promise<void>;
 
   activeView: NavView;
+  libraryTab: 'library' | 'updates' | 'offline';
+  settingsFocusSection: string | null;
   exploreSource: string;
   selectedManga: Manga | null;
   readerSession: ReaderSession | null;
@@ -131,6 +133,8 @@ interface AppState {
   notify: (message: string, tone?: 'info' | 'success' | 'error') => void;
   dismissToast: (id: string) => void;
   setActiveView: (view: NavView) => void;
+  setLibraryTab: (tab: 'library' | 'updates' | 'offline') => void;
+  setSettingsFocusSection: (sec: string | null) => void;
   setExploreSource: (source: string) => void;
   openManga: (manga: Manga) => void;
   closeManga: () => void;
@@ -411,6 +415,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   syncBusy: false,
 
   activeView: 'home',
+  libraryTab: 'library',
+  settingsFocusSection: null,
   exploreSource: 'MANGABALL_EN',
   selectedManga: null,
   readerSession: null,
@@ -498,10 +504,23 @@ export const useAppStore = create<AppState>((set, get) => ({
   dismissToast: (id) =>
     set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
-  setActiveView: (activeView) => {
+  setActiveView: (view) => {
     closeAllPopovers();
-    set({ activeView });
+    if (view === 'updates') {
+      set({ activeView: 'library', libraryTab: 'updates' });
+    } else if (view === 'downloads') {
+      set({ activeView: 'library', libraryTab: 'offline' });
+    } else if (view === 'sources') {
+      set({ activeView: 'settings', settingsFocusSection: 'sources' });
+    } else {
+      set({ activeView: view });
+    }
   },
+  setLibraryTab: (libraryTab) => {
+    closeAllPopovers();
+    set({ activeView: 'library', libraryTab });
+  },
+  setSettingsFocusSection: (settingsFocusSection) => set({ settingsFocusSection }),
   setExploreSource: (exploreSource) => {
     closeAllPopovers();
     set({ exploreSource, activeView: 'explore' });

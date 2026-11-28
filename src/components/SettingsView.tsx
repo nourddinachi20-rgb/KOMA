@@ -17,13 +17,17 @@ import { useT } from '../utils/i18n';
 import { DEFAULT_SYNC_SERVER_URL } from '../utils/syncClient';
 import { ACCENT_PRESETS } from '../utils/theme';
 import { CustomSelect } from './CustomSelect';
+import { SourcesView } from './SourcesView';
 
-type SectionKey = 'account' | 'appearance' | 'reader' | 'backup' | 'trackers' | 'about';
+type SectionKey = 'account' | 'appearance' | 'sources' | 'reader' | 'backup' | 'trackers' | 'about';
 
 export function SettingsView() {
   const t = useT();
   const {
     settings,
+    sources,
+    settingsFocusSection,
+    setSettingsFocusSection,
     updateSettings,
     engineStatus,
     trackerConfig,
@@ -49,6 +53,12 @@ export function SettingsView() {
   } = useAppStore();
 
   const [openSection, setOpenSection] = useState<SectionKey | null>('appearance');
+  useEffect(() => {
+    if (settingsFocusSection) {
+      setOpenSection(settingsFocusSection as SectionKey);
+      setSettingsFocusSection(null);
+    }
+  }, [settingsFocusSection, setSettingsFocusSection]);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [tokenInput, setTokenInput] = useState('');
   const [connecting, setConnecting] = useState(false);
@@ -423,30 +433,64 @@ export function SettingsView() {
                       />
                     );
                   })}
-
-                  <label className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-1 text-[11px] text-zinc-300 hover:text-white cursor-pointer">
-                    <input
-                      type="color"
-                      value={settings.accentColor || '#FFFFFF'}
-                      onChange={(e) =>
-                        void updateSettings({ accentColor: e.target.value.toUpperCase() })
-                      }
-                      className="h-4 w-4 cursor-pointer border-0 bg-transparent p-0"
-                    />
-                    <span>{t.settings.customColor}</span>
-                  </label>
                 </div>
               </div>
             </div>
           )}
         </section>
 
-        {/* 2. Reader & Sources */}
+        {/* 1b. Sources */}
+        <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
+          <SectionHeader
+            id="sources"
+            title={t.sources.title}
+            summary={`${(settings.showNsfw ? sources : sources.filter((s) => s.contentType !== 'HENTAI')).length} · ${settings.preferredLanguages.join(', ')}`}
+          />
+          {openSection === 'sources' && (
+            <div className="space-y-4 border-t border-white/[0.06] px-5 py-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm text-zinc-200">{t.settings.showNsfw}</div>
+                  <div className="text-xs text-zinc-500">{t.settings.showNsfwDesc}</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settings.showNsfw}
+                  onChange={(e) => updateSettings({ showNsfw: e.target.checked })}
+                  className="h-4 w-4 accent-white cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] pb-4">
+                <div>
+                  <div className="text-sm text-zinc-200">{t.settings.sourceLangs}</div>
+                  <div className="text-xs text-zinc-500">{t.settings.sourceLangsDesc}</div>
+                </div>
+                <input
+                  value={settings.preferredLanguages.join(', ')}
+                  onChange={(e) =>
+                    updateSettings({
+                      preferredLanguages: e.target.value
+                        .split(',')
+                        .map((s) => s.trim().toLowerCase())
+                        .filter(Boolean),
+                    })
+                  }
+                  className="w-32 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs text-white focus:outline-none"
+                />
+              </div>
+
+              <SourcesView embedded />
+            </div>
+          )}
+        </section>
+
+        {/* 2. Reader & Display */}
         <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
           <SectionHeader
             id="reader"
             title={t.settings.readerVisualsTitle}
-            summary={`${settings.preloadCount} pages preload · ${settings.preferredLanguages.join(', ')}`}
+            summary={`${settings.preloadCount} pages preload`}
           />
           {openSection === 'reader' && (
             <div className="space-y-4 border-t border-white/[0.06] px-5 py-4">
@@ -521,38 +565,6 @@ export function SettingsView() {
                     { value: 'collapse', label: 'Collapse .x (Latest Only)' },
                     { value: 'all', label: 'Show All Uploads' },
                   ]}
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-4 border-t border-white/[0.06] pt-4">
-                <div>
-                  <div className="text-sm text-zinc-200">{t.settings.showNsfw}</div>
-                  <div className="text-xs text-zinc-500">{t.settings.showNsfwDesc}</div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.showNsfw}
-                  onChange={(e) => updateSettings({ showNsfw: e.target.checked })}
-                  className="h-4 w-4 accent-white cursor-pointer"
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-sm text-zinc-200">{t.settings.sourceLangs}</div>
-                  <div className="text-xs text-zinc-500">{t.settings.sourceLangsDesc}</div>
-                </div>
-                <input
-                  value={settings.preferredLanguages.join(', ')}
-                  onChange={(e) =>
-                    updateSettings({
-                      preferredLanguages: e.target.value
-                        .split(',')
-                        .map((s) => s.trim().toLowerCase())
-                        .filter(Boolean),
-                    })
-                  }
-                  className="w-32 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs text-white focus:outline-none"
                 />
               </div>
             </div>
@@ -814,8 +826,9 @@ export function SettingsView() {
           )}
         </section>
 
-        <div className="pt-4 text-center text-[11px] tracking-[0.2em] text-zinc-500 uppercase">
-          KOMA v{appVersion}
+        <div className="pt-4 text-center text-[11px] tracking-[0.18em] text-zinc-500">
+          <div>KOMA v{appVersion}</div>
+          <div className="mt-0.5 text-zinc-600">made by : VirtualDrum</div>
         </div>
       </div>
     </div>

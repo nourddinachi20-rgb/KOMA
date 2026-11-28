@@ -13,7 +13,7 @@ const LANG_TABS = [
   { id: 'multi', label: 'Multi-Lang' },
 ] as const;
 
-export function SourcesView() {
+export function SourcesView({ embedded = false }: { embedded?: boolean }) {
   const t = useT();
   const {
     sources,
@@ -85,25 +85,31 @@ export function SourcesView() {
   };
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.07] px-6 py-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold tracking-tight text-white">{t.sources.title}</h1>
-            <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-0.5 font-mono-tech text-[10px] text-zinc-300">
-              {counts.all}
-            </span>
+    <div className={embedded ? 'flex w-full flex-col' : 'flex h-full w-full flex-col overflow-hidden'}>
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] ${
+          embedded ? 'pb-3' : 'px-6 py-4'
+        }`}
+      >
+        {!embedded && (
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl font-bold tracking-tight text-white">{t.sources.title}</h1>
+              <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-0.5 font-mono-tech text-[10px] text-zinc-300">
+                {counts.all}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t.sources.searchPlaceholder}
-              className="w-52 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-9 pr-4 text-xs text-white placeholder-zinc-500 focus:border-white/25 focus:outline-none"
+              className="w-44 sm:w-52 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-9 pr-4 text-xs text-white placeholder-zinc-500 focus:border-white/25 focus:outline-none"
             />
           </div>
 
@@ -136,7 +142,7 @@ export function SourcesView() {
       </div>
 
       {/* Language Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/[0.05] px-6 py-3">
+      <div className={`flex flex-wrap items-center gap-2 border-b border-white/[0.05] ${embedded ? 'py-3' : 'px-6 py-3'}`}>
         {LANG_TABS.map((tab) => {
           const active = langFilter === tab.id;
           const count = counts[tab.id];
@@ -156,8 +162,12 @@ export function SourcesView() {
         })}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className={embedded ? 'max-h-[420px] overflow-y-auto pt-3 pr-1' : 'flex-1 overflow-y-auto p-6'}>
+        <div
+          className={`grid grid-cols-1 gap-3 ${
+            embedded ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+          }`}
+        >
           {filtered.map((src) => {
             const pinned = settings.pinnedSources.includes(src.name);
             return (

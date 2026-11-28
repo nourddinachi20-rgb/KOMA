@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.1.5';
+export const APP_VERSION = '1.1.6';
 
 export interface ChangelogSection {
   title: string;
@@ -6,10 +6,10 @@ export interface ChangelogSection {
   items: string[];
 }
 
-export const DEFAULT_WHATS_NEW_NOTES = `### Fixes
-- **Instant Source Loading on Launch & Updates:** Ships all 95 verified sources cleanly inside Android APK assets alongside Desktop, merges bundled sources on every launch/update, and clears stale failed keys on restart so Library stops falsely flagging working manga as broken.
-- **Home Covers & Hero Descriptions:** Staggers initial shelf cover loading with resilient image retries on both Hero banners and cards, and adds MangaDex API + alternate-title AniList fallbacks so every Hero item loads a synopsis cleanly.
-- **Minimal UI Debloat:** Strips promo badges ("Spotlight", "End-to-End Encrypted", "Made by VirtualDrum"), extra logos, and filler text across Home, Splash, Settings, Sources, and Onboarding.`;
+export const DEFAULT_WHATS_NEW_NOTES = `### Improvements
+- **Centered Top Title & 5-Slot Bottom Navigation:** Keeps a clean larger centered **KOMA** wordmark at the top and places Home, Library, Search, Explore, and Settings in the bottom bar with a distinct centered Search button (replacing "More").
+- **Updates & Offline Tabs in Library:** Moved **Updates** and **Offline** directly into **Library** as tabs instead of separate top-level screens.
+- **Sources Inside Settings & Cleaner Options:** Merged the **Sources** manager and language/NSFW controls into Settings, removed the Custom accent picker swatch, and added "made by : VirtualDrum" under the version footer.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;
