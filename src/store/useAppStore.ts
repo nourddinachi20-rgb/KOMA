@@ -41,6 +41,7 @@ import {
   type SyncVaultPayload,
 } from '../utils/syncClient';
 import { restoreSyncCredentials, type SyncCredentials } from '../utils/syncCrypto';
+import { mergeReadingStats } from '../utils/readingStats';
 import { applyCustomizationToDocument } from '../utils/theme';
 import { closeAllPopovers } from '../components/CustomSelect';
 
@@ -270,6 +271,7 @@ async function mergeAndPersistVault(
   localCategories: Category[],
   localLibrary: LibraryEntry[],
   localHistory: HistoryEntry[],
+  localStats: ReadingStats,
   localTombstones: Record<string, number> | undefined,
   payload: SyncVaultPayload,
 ): Promise<{ tombstones: Record<string, number>; hadRemovedStaleRemote: boolean }> {
@@ -337,10 +339,13 @@ async function mergeAndPersistVault(
     }
   }
 
+  const mergedStats = mergeReadingStats(localStats, payload.stats);
+
   await window.noctis.applyBackupData({
     categories: Array.from(catMap.values()),
     library: Array.from(libMap.values()),
     history: Array.from(histMap.values()).sort((a, b) => b.updatedAt - a.updatedAt),
+    stats: mergedStats,
   });
   return { tombstones, hadRemovedStaleRemote };
 }
@@ -747,9 +752,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     }
 
-    // Lightly enrich only the top 3 spotlight entries so launch stays whisper-fast
+    // Enrich top spotlight entries first, then background-enrich remaining hero slides for full synopses
     for (const m of finalHero.slice(0, 3)) {
       void get().prefetchMangaDetails(m);
+    }
+    if (finalHero.length > 3) {
+      setTimeout(() => {
+        for (const m of finalHero.slice(3)) {
+          void get().prefetchMangaDetails(m);
+        }
+      }, 900);
     }
   },
 
@@ -841,6 +853,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               get().categories,
               get().library,
               get().history,
+              get().stats,
               get().settings.deletedLibraryKeys,
               payload,
             );
@@ -1417,11 +1430,21 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const mergedLib = Array.from(mergedLibMap.values());
     const mergedHist = Array.from(mergedHistMap.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+    const curStats = get().stats;
+    const mergedStats: ReadingStats = {
+      ...curStats,
+      activeDays: Array.from(
+        new Set([...(curStats.activeDays ?? []), ...(parsed.stats?.activeDays ?? [])]),
+      )
+        .sort()
+        .slice(-3650),
+    };
 
     await window.noctis.applyBackupData({
       categories: existingCats,
       library: mergedLib,
       history: mergedHist,
+      stats: mergedStats,
     });
     await get().refreshAllData();
 
@@ -1484,6 +1507,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           get().categories,
           get().library,
           get().history,
+          get().stats,
           nextTombstones,
           payload,
         );

@@ -16,6 +16,8 @@ export interface TrackerConfig {
 export interface AniListMediaInfo {
   id: number;
   title: string;
+  description?: string;
+  genres?: string[];
   bannerImage?: string;
   coverImage?: string;
   averageScore?: number;
@@ -32,6 +34,8 @@ interface AniListRawMedia {
   format?: string;
   siteUrl?: string;
   title?: { english?: string; romaji?: string };
+  description?: string;
+  genres?: string[];
   bannerImage?: string;
   coverImage?: { extraLarge?: string; large?: string };
   averageScore?: number;
@@ -182,6 +186,8 @@ class TrackerManager {
             format
             siteUrl
             title { english romaji }
+            description(asHtml: false)
+            genres
             bannerImage
             coverImage { extraLarge large }
             averageScore
@@ -252,6 +258,8 @@ class TrackerManager {
     const result: AniListMediaInfo = {
       id: matched.id,
       title: matched.title?.english || matched.title?.romaji || title,
+      description: matched.description,
+      genres: matched.genres,
       bannerImage: matched.bannerImage,
       coverImage: matched.coverImage?.extraLarge || matched.coverImage?.large,
       averageScore: matched.averageScore,

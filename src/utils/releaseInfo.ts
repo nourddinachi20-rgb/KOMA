@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.1.2';
+export const APP_VERSION = '1.1.3';
 
 export interface ChangelogSection {
   title: string;
@@ -7,10 +7,8 @@ export interface ChangelogSection {
 }
 
 export const DEFAULT_WHATS_NEW_NOTES = `### Fixes
-- **Sync Payload Compaction & Worker Guards:** Strips heavy cached chapter lists before encrypting sync vaults (~12x smaller) and adds CORS-safe error responses so PC (\`500\`) and Android (\`Failed to fetch\`) uploads succeed reliably.
-- **No False Broken Mihon/Komikku Flags:** Stops flagging working \`mihon-\` entries as broken, adds \`COMICK_FUN\`/\`MANHUARM\`/\`MANGA_DEMON\` to known dead sources, and skips unverified/dead entries in \`Check Updates\` for faster checks.
-- **Cross-Source Duplicate Merge & Kotatsu Progress:** Merging/migrating backups merges matching titles instead of creating duplicate entries, and Kotatsu history shows approximate \`~Ch. X\` progress.
-- **Light Theme, Arabic RTL, Tablet & UX Polish:** Fixed Light Paper contrast across Explore/Spotlight/Reader/Splash, RTL truncation & tablet nav spacing, Download Modal \`Ch. 0\` labels, inline Sign In validation, and Welcome gate feed loading.`;
+- **Cross-App Reading Statistics:** Library statistics now include all series, finished chapters, estimated/tracked pages, reading days, and genres imported from Kotatsu, Mihon, and Komikku alongside in-app reading (plus \`Manga Read\` series count and stats sync across devices).
+- **Hero Spotlight Layout & Missing Synopses:** Prefetches details across every Spotlight slide with AniList synopsis/genre fallback when a source omits them, places genres right under the author name, positions description between the cover/title row and buttons, and keeps Read Now, Details & Chapters, and Bookmark on one clean row.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

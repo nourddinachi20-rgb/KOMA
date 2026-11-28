@@ -993,6 +993,7 @@ class KomaNativePlugin : Plugin() {
               Page(page: 1, perPage: 5) {
                 media(search: ${'$'}search, type: MANGA, sort: SEARCH_MATCH) {
                   id format siteUrl title { english romaji }
+                  description(asHtml: false) genres
                   bannerImage coverImage { extraLarge large }
                   averageScore popularity chapters status
                   relations { edges { relationType node { id format title { english romaji } coverImage { large } } } }
@@ -1059,6 +1060,8 @@ class KomaNativePlugin : Plugin() {
         val info = JSONObject().apply {
             put("id", matched.getInt("id"))
             put("title", tObj?.optString("english")?.ifBlank { null } ?: tObj?.optString("romaji") ?: title)
+            matched.optString("description").takeIf { it.isNotBlank() }?.let { put("description", it) }
+            matched.optJSONArray("genres")?.let { put("genres", it) }
             matched.optString("bannerImage").takeIf { it.isNotBlank() }?.let { put("bannerImage", it) }
             val cov = matched.optJSONObject("coverImage")
             (cov?.optString("extraLarge")?.ifBlank { null } ?: cov?.optString("large"))?.let { put("coverImage", it) }

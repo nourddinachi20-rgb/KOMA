@@ -45,6 +45,7 @@ export interface Translations {
     checking: string;
     importCbz: string;
     importFolder: string;
+    seriesRead: string;
     chaptersFinished: string;
     pagesRead: string;
     streak: string;
@@ -211,6 +212,7 @@ const EN: Translations = {
     checking: 'Checking...',
     importCbz: 'Import CBZ',
     importFolder: 'Import Folder',
+    seriesRead: 'Manga Read',
     chaptersFinished: 'Chapters Finished',
     pagesRead: 'Pages Read',
     streak: 'Reading Streak',
@@ -377,6 +379,7 @@ const FR: Translations = {
     checking: 'Vérification...',
     importCbz: 'Importer CBZ',
     importFolder: 'Importer Dossier',
+    seriesRead: 'Séries lues',
     chaptersFinished: 'Chapitres lus',
     pagesRead: 'Pages lues',
     streak: 'Série de jours',
@@ -543,6 +546,7 @@ const AR: Translations = {
     checking: 'جاري الفحص...',
     importCbz: 'استيراد CBZ',
     importFolder: 'استيراد مجلد',
+    seriesRead: 'المانغا المقروءة',
     chaptersFinished: 'الفصول المكتملة',
     pagesRead: 'الصفحات المقروءة',
     streak: 'أيام متواصلة',

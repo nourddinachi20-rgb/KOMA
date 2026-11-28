@@ -25,6 +25,11 @@ export interface ParsedBackupResult {
 
 const textDecoder = new TextDecoder('utf-8');
 
+function toIsoDay(ts: number | undefined): string | null {
+  if (!ts || !Number.isFinite(ts) || ts < 946684800000) return null;
+  return new Date(ts).toISOString().slice(0, 10);
+}
+
 export function base64ToUint8Array(base64: string): Uint8Array {
   const clean = base64.replace(/^data:[^;]+;base64,/, '').replace(/\s+/g, '');
   const binary = atob(clean);
@@ -368,11 +373,16 @@ function parseKotatsuZip(entries: Map<string, Uint8Array>, sources: SourceInfo[]
 
   const histByManga = new Map<string, KotatsuHistoryJson>();
   const history: HistoryEntry[] = [];
+  const activeDaySet = new Set<string>();
   for (const h of histList) {
     if (!h.manga) continue;
     const manga = kotatsuMangaToKoma(h.manga, sources);
     const key = `${manga.source}::${manga.id}`;
     histByManga.set(key, h);
+    const d1 = toIsoDay(h.updated_at);
+    const d2 = toIsoDay(h.created_at);
+    if (d1) activeDaySet.add(d1);
+    if (d2) activeDaySet.add(d2);
     const totalCh = typeof h.chapters === 'number' && h.chapters > 0 ? h.chapters : 0;
     const pct = typeof h.percent === 'number' && h.percent > 0 ? Math.min(1, h.percent) : 0;
     const approxCh = totalCh > 0 && pct > 0 ? Math.max(1, Math.min(totalCh, Math.round(pct * totalCh))) : 0;
@@ -418,6 +428,13 @@ function parseKotatsuZip(entries: Map<string, Uint8Array>, sources: SourceInfo[]
     categories: categories.length > 0 ? categories : [{ id: 'reading', name: 'Reading', order: 0 }],
     library: Array.from(libMap.values()),
     history,
+    stats: {
+      chaptersCompleted: 0,
+      pagesRead: 0,
+      readingMinutes: 0,
+      activeDays: Array.from(activeDaySet).sort(),
+      genreCounts: {},
+    },
     unresolvedExternalCount: 0,
   };
 }
@@ -473,6 +490,7 @@ function parseMihonProtobuf(rawProto: Uint8Array, sources: SourceInfo[]): Parsed
 
   const library: LibraryEntry[] = [];
   const history: HistoryEntry[] = [];
+  const activeDaySet = new Set<string>();
   let unresolvedExternalCount = 0;
 
   for (const mBytes of rawMangaMsgs) {
@@ -642,21 +660,32 @@ function parseMihonProtobuf(rawProto: Uint8Array, sources: SourceInfo[]): Parsed
     const key = `${sourceName}::${mangaId}`;
     const readIds = chapters.filter((c) => c.read).map((c, idx) => c.url || `${mangaId}::ch-${idx}`);
 
+    for (const hi of histItems) {
+      const day = toIsoDay(hi.lastRead);
+      if (day) activeDaySet.add(day);
+    }
+
     const latestHist = histItems.sort((a, b) => b.lastRead - a.lastRead)[0];
     const matchedHistChapter = latestHist
       ? chapters.find((c) => c.url === latestHist.url)
       : chapters.find((c) => !c.read && c.lastPageRead > 0);
+    const fallbackReadChapter =
+      !latestHist && !matchedHistChapter && !favorite && readIds.length > 0
+        ? chapters.filter((c) => c.read).slice(-1)[0]
+        : undefined;
 
-    if (latestHist || matchedHistChapter) {
+    if (latestHist || matchedHistChapter || fallbackReadChapter) {
+      const chMatch = matchedHistChapter ?? fallbackReadChapter;
       history.push({
         key,
         manga,
-        chapterId: matchedHistChapter?.url || latestHist?.url || '',
-        chapterNumber: matchedHistChapter?.chapterNumber ?? 0,
-        chapterTitle: matchedHistChapter?.name || 'Last Read',
-        pageIndex: Math.max(0, matchedHistChapter?.lastPageRead ?? 0),
+        chapterId: chMatch?.url || latestHist?.url || '',
+        chapterNumber: chMatch?.chapterNumber ?? 0,
+        chapterTitle: chMatch?.name || 'Last Read',
+        pageIndex: Math.max(0, chMatch?.lastPageRead ?? 0),
         totalPages: 0,
-        updatedAt: latestHist?.lastRead || Date.now(),
+        updatedAt: latestHist?.lastRead || chMatch?.dateUpload || Date.now(),
+        ...(readIds.length > 0 && !favorite ? { importedChaptersRead: readIds.length } : {}),
       });
     }
 
@@ -694,6 +723,13 @@ function parseMihonProtobuf(rawProto: Uint8Array, sources: SourceInfo[]): Parsed
     categories: categories.length > 0 ? categories : [{ id: 'reading', name: 'Reading', order: 0 }],
     library,
     history,
+    stats: {
+      chaptersCompleted: 0,
+      pagesRead: 0,
+      readingMinutes: 0,
+      activeDays: Array.from(activeDaySet).sort(),
+      genreCounts: {},
+    },
     unresolvedExternalCount,
   };
 }

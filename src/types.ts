@@ -156,6 +156,8 @@ export interface TrackerConfig {
 export interface AniListMediaInfo {
   id: number;
   title: string;
+  description?: string;
+  genres?: string[];
   bannerImage?: string;
   coverImage?: string;
   averageScore?: number;
@@ -187,6 +189,7 @@ export interface HistoryEntry {
   pageIndex: number;
   totalPages: number;
   updatedAt: number;
+  importedChaptersRead?: number;
 }
 
 export interface DownloadedChapter {

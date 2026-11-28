@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.1.2';
+const DEFAULT_VERSION = '1.1.3';
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -21,6 +21,14 @@ interface GitHubRelease {
 }
 
 const FALLBACK_RELEASES: GitHubRelease[] = [
+  {
+    tag_name: 'v1.1.3',
+    name: 'KOMA v1.1.3',
+    published_at: '2026-11-28T03:30:00Z',
+    body: `### Fixes
+- **Cross-App Reading Statistics:** Counts series, finished chapters, pages, reading days, and favorite genres from Kotatsu, Mihon, and Komikku backups alongside KOMA reading, and syncs stats across devices.
+- **Hero Spotlight Layout & Complete Descriptions:** Prefetches details + AniList synopsis/genres for every Hero slide so descriptions and genres always appear consistently, with genres placed right under the author name and Read Now, Details & Chapters, and Bookmark aligned cleanly below.`,
+  },
   {
     tag_name: 'v1.1.2',
     name: 'KOMA v1.1.2',

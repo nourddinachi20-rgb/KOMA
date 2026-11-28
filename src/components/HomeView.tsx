@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
@@ -12,6 +12,7 @@ import {
   Sparkles,
   Star,
 } from 'lucide-react';
+import type { AniListMediaInfo } from '../types';
 import { HOUR_MS, useAppStore } from '../store/useAppStore';
 import { cleanDescriptionMarkup, getProxiedImageUrl } from '../utils/api';
 import { extractAmbientColor } from '../utils/colorExtractor';
@@ -30,6 +31,7 @@ export function HomeView() {
     homeRows,
     detailsCache,
     loadHomeFeeds,
+    prefetchMangaDetails,
     openManga,
     openReader,
     toggleLibraryManga,
@@ -43,6 +45,8 @@ export function HomeView() {
   const [heroIndex, setHeroIndex] = useState(0);
   const [heroPaused, setHeroPaused] = useState(false);
   const [ambientRgb, setAmbientRgb] = useState('255, 255, 255');
+  const [aniHeroMeta, setAniHeroMeta] = useState<Record<string, AniListMediaInfo | null>>({});
+  const aniRequestedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const checkHour = setInterval(() => {
@@ -74,9 +78,38 @@ export function HomeView() {
 
   const activeIdx = heroIndex % Math.max(1, fallbackHero.length);
   const rawHero = fallbackHero[activeIdx] ?? null;
+  const currentHeroKey = rawHero ? `${rawHero.source}::${rawHero.id}` : '';
   const currentHero = rawHero
-    ? detailsCache[`${rawHero.source}::${rawHero.id}`] ?? rawHero
+    ? detailsCache[currentHeroKey] ?? rawHero
     : null;
+
+  useEffect(() => {
+    if (!engineStatus.ready || !rawHero) return;
+    if (!detailsCache[currentHeroKey] || detailsCache[currentHeroKey]?.chapters === null) {
+      void prefetchMangaDetails(rawHero);
+    }
+    const upcomingHero =
+      fallbackHero.length > 1 ? fallbackHero[(activeIdx + 1) % fallbackHero.length] : null;
+    if (upcomingHero) {
+      const nextKey = `${upcomingHero.source}::${upcomingHero.id}`;
+      if (!detailsCache[nextKey]) void prefetchMangaDetails(upcomingHero);
+    }
+  }, [engineStatus.ready, rawHero, currentHeroKey, detailsCache, fallbackHero, activeIdx, prefetchMangaDetails]);
+
+  useEffect(() => {
+    if (!currentHero || !currentHeroKey) return;
+    const hasDesc = Boolean(cleanDescriptionMarkup(currentHero.description));
+    const hasTags = currentHero.tags.length > 0;
+    if ((hasDesc && hasTags) || aniRequestedRef.current.has(currentHeroKey)) return;
+    aniRequestedRef.current.add(currentHeroKey);
+    const keyForReq = currentHeroKey;
+    void window.noctis
+      .fetchAniListMetadata(currentHero.title, currentHero.altTitles?.[0])
+      .then((meta) => {
+        setAniHeroMeta((prev) => ({ ...prev, [keyForReq]: meta }));
+      })
+      .catch(() => {});
+  }, [currentHero, currentHeroKey]);
 
   useEffect(() => {
     if (!currentHero || !settings.ambientGlow) return;
@@ -142,7 +175,18 @@ export function HomeView() {
     }
   };
 
-  const cleanHeroDesc = cleanDescriptionMarkup(currentHero?.description);
+  const activeAniMeta = currentHeroKey ? aniHeroMeta[currentHeroKey] ?? null : null;
+  const cleanHeroDesc =
+    cleanDescriptionMarkup(currentHero?.description) ||
+    cleanDescriptionMarkup(activeAniMeta?.description);
+  const heroGenres =
+    currentHero && currentHero.tags.length > 0
+      ? currentHero.tags
+      : (activeAniMeta?.genres ?? []).map((g) => ({
+          title: g,
+          key: g.toLowerCase().replace(/\s+/g, '-'),
+          source: currentHero?.source ?? 'ANILIST',
+        }));
 
   return (
     <div className="relative h-full w-full overflow-y-auto pb-20">
@@ -192,45 +236,62 @@ export function HomeView() {
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.24 }}
                   >
-                    {/* Compact cover badge shown on phones & portrait tablets */}
-                    {heroCover && (
-                      <div className="mb-4 flex items-center gap-4 lg:hidden">
-                        <div
-                          onClick={() => openManga(currentHero)}
-                          className="w-24 shrink-0 overflow-hidden rounded-xl border border-white/20 bg-zinc-950 shadow-xl cursor-pointer sm:w-28"
-                          style={{ aspectRatio: '2/3' }}
-                        >
+                    {/* Top part on phones & portrait tablets: cover left, title / author / genres right */}
+                    <div className="mb-3 flex items-start gap-4 lg:hidden">
+                      <div
+                        onClick={() => openManga(currentHero)}
+                        className="w-24 shrink-0 overflow-hidden rounded-xl border border-white/20 bg-zinc-950 shadow-xl cursor-pointer sm:w-28"
+                        style={{ aspectRatio: '2/3' }}
+                      >
+                        {heroCover ? (
                           <img
                             src={heroCover}
                             alt={currentHero.title}
                             decoding="async"
                             className="h-full w-full object-cover"
                           />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono-tech uppercase tracking-wider">
-                            <span className="flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-white">
-                              <Sparkles className="h-2.5 w-2.5 accent-fg" />
-                              {t.home.spotlight}
-                            </span>
-                            {currentHero.rating > 0 && (
-                              <span className="flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-zinc-200">
-                                <Star className="h-2.5 w-2.5 fill-white text-white" />
-                                {(currentHero.rating * 10).toFixed(1)}
-                              </span>
-                            )}
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-zinc-700">
+                            <BookOpen className="h-6 w-6" />
                           </div>
-                          <h1 className="mt-2 line-clamp-2 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-                            {currentHero.title}
-                          </h1>
-                          {currentHero.authors.length > 0 && (
-                            <p className="mt-1 truncate text-xs text-zinc-300/90">
-                              {t.home.by} {currentHero.authors.slice(0, 2).join(', ')}
-                            </p>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono-tech uppercase tracking-wider">
+                          <span className="flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-white">
+                            <Sparkles className="h-2.5 w-2.5 accent-fg" />
+                            {t.home.spotlight}
+                          </span>
+                          {currentHero.rating > 0 && (
+                            <span className="flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-2 py-0.5 text-zinc-200">
+                              <Star className="h-2.5 w-2.5 fill-white text-white" />
+                              {(currentHero.rating * 10).toFixed(1)}
+                            </span>
                           )}
                         </div>
+                        <h1 className="mt-1.5 line-clamp-2 text-xl font-extrabold tracking-tight text-white sm:text-3xl">
+                          {currentHero.title}
+                        </h1>
+                        {currentHero.authors.length > 0 && (
+                          <p className="mt-1 truncate text-xs text-zinc-300/90">
+                            {t.home.by} {currentHero.authors.slice(0, 2).join(', ')}
+                          </p>
+                        )}
+                        {heroGenres.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {heroGenres.slice(0, 4).map((tag) => (
+                              <span
+                                key={tag.key}
+                                className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] text-zinc-200 backdrop-blur-md"
+                              >
+                                {tag.title}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
+
                     <div className="hidden lg:flex flex-wrap items-center gap-2 text-[11px] font-mono-tech uppercase tracking-[0.16em]">
                       <span className="flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-white backdrop-blur-md">
                         <Sparkles className="h-3 w-3 accent-fg" />
@@ -264,52 +325,52 @@ export function HomeView() {
 
                     {currentHero.authors.length > 0 && (
                       <p className="hidden lg:block mt-1.5 text-sm text-zinc-300/90">
-                        by{' '}
+                        {t.home.by}{' '}
                         <span className="font-medium text-white">
                           {currentHero.authors.slice(0, 2).join(', ')}
                         </span>
                       </p>
                     )}
 
-                    {cleanHeroDesc && (
-                      <p className="mt-3 line-clamp-3 max-w-xl text-sm leading-relaxed text-zinc-300/85">
-                        {cleanHeroDesc}
-                      </p>
-                    )}
-
-                    {currentHero.tags.length > 0 && (
-                      <div className="mt-4 flex flex-wrap gap-1.5">
-                        {currentHero.tags.slice(0, 5).map((t) => (
+                    {heroGenres.length > 0 && (
+                      <div className="hidden lg:flex mt-2.5 flex-wrap gap-1.5">
+                        {heroGenres.slice(0, 5).map((tag) => (
                           <span
-                            key={t.key}
+                            key={tag.key}
                             className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-0.5 text-[11px] text-zinc-200 backdrop-blur-md"
                           >
-                            {t.title}
+                            {tag.title}
                           </span>
                         ))}
                       </div>
                     )}
 
-                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                    {cleanHeroDesc && (
+                      <p className="mt-3 max-w-xl line-clamp-3 text-xs sm:text-sm leading-relaxed text-zinc-300/85">
+                        {cleanHeroDesc}
+                      </p>
+                    )}
+
+                    <div className="mt-4 sm:mt-5 flex flex-nowrap items-center gap-2 sm:gap-3">
                       <button
                         onClick={handleQuickReadHero}
-                        className="accent-bg flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold shadow-[0_0_28px_rgba(var(--koma-accent-rgb),0.22)] transition hover:scale-[1.03] cursor-pointer"
+                        className="accent-bg flex shrink-0 items-center gap-1.5 sm:gap-2 rounded-full px-4 py-2.5 sm:px-6 text-xs sm:text-sm font-semibold whitespace-nowrap shadow-[0_0_28px_rgba(var(--koma-accent-rgb),0.22)] transition hover:scale-[1.03] cursor-pointer"
                       >
-                        <Play className="h-4 w-4 fill-current" />
+                        <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current" />
                         <span>{t.home.readNow}</span>
                       </button>
 
                       <button
                         onClick={() => openManga(currentHero)}
-                        className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] px-5 py-2.5 text-sm font-medium text-white backdrop-blur-md transition hover:border-white/30 hover:bg-white/[0.14] cursor-pointer"
+                        className="flex min-w-0 items-center gap-1.5 sm:gap-2 rounded-full border border-white/15 bg-white/[0.08] px-3.5 py-2.5 sm:px-5 text-xs sm:text-sm font-medium text-white backdrop-blur-md transition hover:border-white/30 hover:bg-white/[0.14] cursor-pointer"
                       >
-                        <BookOpen className="h-4 w-4" />
-                        <span>{t.home.details}</span>
+                        <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                        <span className="truncate">{t.home.details}</span>
                       </button>
 
                       <button
                         onClick={() => toggleLibraryManga(currentHero)}
-                        className={`flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition cursor-pointer ${
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border backdrop-blur-md transition cursor-pointer ${
                           heroInLibrary
                             ? 'accent-bg border-white/40'
                             : 'border-white/15 bg-white/[0.07] text-white hover:border-white/30 hover:bg-white/[0.14]'

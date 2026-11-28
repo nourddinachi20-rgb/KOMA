@@ -20,29 +20,10 @@ import { useAppStore } from '../store/useAppStore';
 import { useT } from '../utils/i18n';
 import { KNOWN_BROKEN_SOURCES } from '../utils/api';
 import { resolveCleanChapters } from '../utils/chapters';
+import { computeEffectiveReadingStats } from '../utils/readingStats';
 import { BulkMigrateModal } from './BulkMigrateModal';
 import { CustomSelect, closeAllPopovers, useClosePopoversListener } from './CustomSelect';
 import { MangaCard } from './MangaCard';
-
-function computeStreakDays(days: string[]): number {
-  if (days.length === 0) return 0;
-  const set = new Set(days);
-  let streak = 0;
-  const cur = new Date();
-  while (true) {
-    const iso = cur.toISOString().slice(0, 10);
-    if (set.has(iso)) {
-      streak += 1;
-      cur.setDate(cur.getDate() - 1);
-    } else if (streak === 0) {
-      cur.setDate(cur.getDate() - 1);
-      if (!set.has(cur.toISOString().slice(0, 10))) break;
-    } else {
-      break;
-    }
-  }
-  return streak;
-}
 
 export function LibraryView() {
   const t = useT();
@@ -177,13 +158,10 @@ export function LibraryView() {
     });
   };
 
-  const topGenre = useMemo(() => {
-    const entries = Object.entries(stats.genreCounts);
-    if (entries.length === 0) return null;
-    return entries.sort((a, b) => b[1] - a[1])[0][0];
-  }, [stats.genreCounts]);
-
-  const streak = useMemo(() => computeStreakDays(stats.activeDays), [stats.activeDays]);
+  const effectiveStats = useMemo(
+    () => computeEffectiveReadingStats(library, history, stats),
+    [library, history, stats],
+  );
 
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,32 +316,39 @@ export function LibraryView() {
 
       {/* Collapsible Stats Strip */}
       {showStats && (
-        <div className="grid grid-cols-2 gap-2 border-b border-white/[0.05] bg-white/[0.015] px-4 py-3 sm:grid-cols-4 sm:px-6">
+        <div className="grid grid-cols-2 gap-2 border-b border-white/[0.05] bg-white/[0.015] px-4 py-3 sm:grid-cols-3 lg:grid-cols-5 sm:px-6">
           <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-            <BookCheck className="h-4 w-4 accent-fg" />
-            <div>
-              <div className="text-sm font-bold text-white">{stats.chaptersCompleted}</div>
-              <div className="text-[10px] text-zinc-500">{t.library.chaptersFinished}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-            <Sparkles className="h-4 w-4 text-zinc-300" />
-            <div>
-              <div className="text-sm font-bold text-white">{stats.pagesRead}</div>
-              <div className="text-[10px] text-zinc-500">{t.library.pagesRead}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-            <Flame className="h-4 w-4 accent-fg" />
-            <div>
-              <div className="text-sm font-bold text-white">{streak}d</div>
-              <div className="text-[10px] text-zinc-500">{t.library.streak}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <BookCheck className="h-4 w-4 shrink-0 accent-fg" />
             <div className="min-w-0">
-              <div className="truncate text-sm font-bold text-white">{topGenre ?? '—'}</div>
-              <div className="text-[10px] text-zinc-500">{t.library.topGenre}</div>
+              <div className="text-sm font-bold text-white">{effectiveStats.seriesRead.toLocaleString()}</div>
+              <div className="truncate text-[10px] text-zinc-500">{t.library.seriesRead}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <BookCheck className="h-4 w-4 shrink-0 text-zinc-300" />
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-white">{effectiveStats.chaptersCompleted.toLocaleString()}</div>
+              <div className="truncate text-[10px] text-zinc-500">{t.library.chaptersFinished}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <Sparkles className="h-4 w-4 shrink-0 text-zinc-300" />
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-white">{effectiveStats.pagesRead.toLocaleString()}</div>
+              <div className="truncate text-[10px] text-zinc-500">{t.library.pagesRead}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <Flame className="h-4 w-4 shrink-0 accent-fg" />
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-white">{effectiveStats.streakDays}d</div>
+              <div className="truncate text-[10px] text-zinc-500">{t.library.streak}</div>
+            </div>
+          </div>
+          <div className="col-span-2 sm:col-span-1 flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-bold text-white">{effectiveStats.topGenre ?? '—'}</div>
+              <div className="truncate text-[10px] text-zinc-500">{t.library.topGenre}</div>
             </div>
           </div>
         </div>
