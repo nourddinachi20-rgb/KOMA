@@ -184,7 +184,7 @@ async function renderQr(url: string): Promise<void> {
   try {
     const svg = await QRCode.toString(url, {
       type: 'svg',
-      width: 108,
+      width: 96,
       margin: 1,
       color: { dark: '#FFFFFF', light: '#0A0A0D' },
     });
