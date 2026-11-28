@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.1.6';
+export const APP_VERSION = '1.1.7';
 
 export interface ChangelogSection {
   title: string;
@@ -6,10 +6,10 @@ export interface ChangelogSection {
   items: string[];
 }
 
-export const DEFAULT_WHATS_NEW_NOTES = `### Improvements
-- **Centered Top Title & 5-Slot Bottom Navigation:** Keeps a clean larger centered **KOMA** wordmark at the top and places Home, Library, Search, Explore, and Settings in the bottom bar with a distinct centered Search button (replacing "More").
-- **Updates & Offline Tabs in Library:** Moved **Updates** and **Offline** directly into **Library** as tabs instead of separate top-level screens.
-- **Sources Inside Settings & Cleaner Options:** Merged the **Sources** manager and language/NSFW controls into Settings, removed the Custom accent picker swatch, and added "made by : VirtualDrum" under the version footer.`;
+export const DEFAULT_WHATS_NEW_NOTES = `### Fixes
+- **Fixed Sources Showing (0) & Boot Race:** Attaches engine status listeners before initial hydration and always re-checks/restarts the engine when Refresh is clicked so all verified sources load immediately on launch and after updates.
+- **Full-Screen Sources via Settings:** Clicking **Sources** inside Settings now opens the full-screen Sources view with a Back button back to Settings and a 18+ filter toggle.
+- **Single-Row Library Header:** Groups Library, Updates, and Offline into a compact segmented pill aligned on one line alongside the Filter, Stats, and More buttons.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

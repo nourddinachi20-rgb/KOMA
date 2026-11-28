@@ -17,15 +17,15 @@ import { useT } from '../utils/i18n';
 import { DEFAULT_SYNC_SERVER_URL } from '../utils/syncClient';
 import { ACCENT_PRESETS } from '../utils/theme';
 import { CustomSelect } from './CustomSelect';
-import { SourcesView } from './SourcesView';
 
-type SectionKey = 'account' | 'appearance' | 'sources' | 'reader' | 'backup' | 'trackers' | 'about';
+type SectionKey = 'account' | 'appearance' | 'reader' | 'backup' | 'trackers' | 'about';
 
 export function SettingsView() {
   const t = useT();
   const {
     settings,
     sources,
+    setActiveView,
     settingsFocusSection,
     setSettingsFocusSection,
     updateSettings,
@@ -439,50 +439,21 @@ export function SettingsView() {
           )}
         </section>
 
-        {/* 1b. Sources */}
+        {/* 1b. Sources (opens full Sources screen) */}
         <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]">
-          <SectionHeader
-            id="sources"
-            title={t.sources.title}
-            summary={`${(settings.showNsfw ? sources : sources.filter((s) => s.contentType !== 'HENTAI')).length} · ${settings.preferredLanguages.join(', ')}`}
-          />
-          {openSection === 'sources' && (
-            <div className="space-y-4 border-t border-white/[0.06] px-5 py-4">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-sm text-zinc-200">{t.settings.showNsfw}</div>
-                  <div className="text-xs text-zinc-500">{t.settings.showNsfwDesc}</div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.showNsfw}
-                  onChange={(e) => updateSettings({ showNsfw: e.target.checked })}
-                  className="h-4 w-4 accent-white cursor-pointer"
-                />
+          <button
+            type="button"
+            onClick={() => setActiveView('sources')}
+            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-white/[0.04] cursor-pointer"
+          >
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-white">{t.sources.title}</div>
+              <div className="truncate text-xs text-zinc-500">
+                {(settings.showNsfw ? sources : sources.filter((s) => s.contentType !== 'HENTAI')).length} · {settings.preferredLanguages.join(', ')}
               </div>
-
-              <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] pb-4">
-                <div>
-                  <div className="text-sm text-zinc-200">{t.settings.sourceLangs}</div>
-                  <div className="text-xs text-zinc-500">{t.settings.sourceLangsDesc}</div>
-                </div>
-                <input
-                  value={settings.preferredLanguages.join(', ')}
-                  onChange={(e) =>
-                    updateSettings({
-                      preferredLanguages: e.target.value
-                        .split(',')
-                        .map((s) => s.trim().toLowerCase())
-                        .filter(Boolean),
-                    })
-                  }
-                  className="w-32 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs text-white focus:outline-none"
-                />
-              </div>
-
-              <SourcesView embedded />
             </div>
-          )}
+            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
+          </button>
         </section>
 
         {/* 2. Reader & Display */}

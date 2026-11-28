@@ -12,6 +12,9 @@ import { TutorialOverlay } from './components/TutorialOverlay';
 import { WelcomeAuthModal } from './components/WelcomeAuthModal';
 import { WhatsNewModal } from './components/WhatsNewModal';
 
+const SourcesView = lazy(() =>
+  import('./components/SourcesView').then((m) => ({ default: m.SourcesView })),
+);
 const SettingsView = lazy(() =>
   import('./components/SettingsView').then((m) => ({ default: m.SettingsView })),
 );
@@ -117,6 +120,7 @@ export function App() {
             </div>
 
             <Suspense fallback={null}>
+              {!selectedManga && activeView === 'sources' && <SourcesView />}
               {!selectedManga && activeView === 'settings' && <SettingsView />}
               {selectedManga && (
                 <MangaDetailsPage key={`manga-${selectedManga.source}-${selectedManga.id}`} />

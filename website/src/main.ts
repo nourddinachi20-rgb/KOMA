@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.1.6';
+const DEFAULT_VERSION = '1.1.7';
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -21,6 +21,15 @@ interface GitHubRelease {
 }
 
 const FALLBACK_RELEASES: GitHubRelease[] = [
+  {
+    tag_name: 'v1.1.7',
+    name: 'KOMA v1.1.7',
+    published_at: '2026-11-28T20:05:00Z',
+    body: `### Fixes
+- **Fixed Sources Showing (0):** Fixes the startup engine-status listener race so all verified sources load immediately on launch and when tapping Refresh.
+- **Full-Screen Sources from Settings:** Tapping **Sources** inside Settings now opens the dedicated full-screen Sources page with a Back button and 18+ filter toggle.
+- **Single-Row Library Header:** Packs Library, Updates, and Offline into a compact segmented pill aligned cleanly on one line alongside Filter, Stats, and More.`,
+  },
   {
     tag_name: 'v1.1.6',
     name: 'KOMA v1.1.6',

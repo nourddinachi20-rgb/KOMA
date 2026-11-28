@@ -188,15 +188,15 @@ export function LibraryView() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-2.5 sm:px-6">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      <div className="flex items-center justify-between gap-2 border-b border-white/[0.07] px-3 py-2 sm:px-6">
+        <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto no-scrollbar rounded-full border border-white/10 bg-white/[0.03] p-0.5">
           <button
             type="button"
             onClick={() => setLibraryTab('library')}
-            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
+            className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition sm:px-3.5 sm:py-1.5 sm:text-xs cursor-pointer ${
               libraryTab === 'library'
                 ? 'accent-bg'
-                : 'border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white'
+                : 'text-zinc-400 hover:text-white'
             }`}
           >
             <span>{t.library.title}</span>
@@ -206,15 +206,15 @@ export function LibraryView() {
           <button
             type="button"
             onClick={() => setLibraryTab('updates')}
-            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
+            className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition sm:px-3.5 sm:py-1.5 sm:text-xs cursor-pointer ${
               libraryTab === 'updates'
                 ? 'accent-bg'
-                : 'border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white'
+                : 'text-zinc-400 hover:text-white'
             }`}
           >
             <span>{t.updates.title}</span>
             {updates.length > 0 && (
-              <span className="rounded-full bg-white/15 px-1.5 py-0.2 font-mono-tech text-[10px]">
+              <span className="rounded-full bg-white/15 px-1.5 font-mono-tech text-[9px] sm:text-[10px]">
                 {updates.length}
               </span>
             )}
@@ -223,10 +223,10 @@ export function LibraryView() {
           <button
             type="button"
             onClick={() => setLibraryTab('offline')}
-            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
+            className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap transition sm:px-3.5 sm:py-1.5 sm:text-xs cursor-pointer ${
               libraryTab === 'offline'
                 ? 'accent-bg'
-                : 'border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white'
+                : 'text-zinc-400 hover:text-white'
             }`}
           >
             <span>{t.nav.offline}</span>
@@ -237,11 +237,11 @@ export function LibraryView() {
         </div>
 
         {libraryTab === 'library' && (
-          <div className="relative flex items-center gap-1.5">
+          <div className="relative flex shrink-0 items-center gap-1 sm:gap-1.5">
           <button
             onClick={() => setShowFilters((s) => !s)}
             title="Search & Sort"
-            className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs transition cursor-pointer ${
+            className={`flex h-8 w-8 items-center justify-center gap-1.5 rounded-full border text-xs transition sm:h-9 sm:w-auto sm:px-3 cursor-pointer ${
               showFilters || search || unreadOnly
                 ? 'accent-bg border-white/35'
                 : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:border-white/25 hover:text-white'
@@ -254,7 +254,7 @@ export function LibraryView() {
           <button
             onClick={() => setShowStats((s) => !s)}
             title="Stats"
-            className={`flex h-9 w-9 items-center justify-center rounded-full border transition cursor-pointer ${
+            className={`flex h-8 w-8 items-center justify-center rounded-full border transition sm:h-9 sm:w-9 cursor-pointer ${
               showStats
                 ? 'accent-bg border-white/35'
                 : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:border-white/25 hover:text-white'
@@ -269,7 +269,7 @@ export function LibraryView() {
               setActionsOpen((o) => !o);
             }}
             title="More"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:border-white/25 hover:text-white cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:border-white/25 hover:text-white sm:h-9 sm:w-9 cursor-pointer"
           >
             {checkingUpdates ? (
               <Loader2 className="h-4 w-4 animate-spin" />

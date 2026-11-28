@@ -1,25 +1,26 @@
-import { useMemo, useState } from 'react';
-import { ArrowUpRight, CheckCircle2, Loader2, Pin, RefreshCw, Search, Shield } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ArrowUpRight, Loader2, Pin, RefreshCw, Search, Shield } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { SourceInfo } from '../types';
 import { fetchSources } from '../utils/api';
 import { useT } from '../utils/i18n';
 
 const LANG_TABS = [
-  { id: 'all', label: 'All Verified' },
+  { id: 'all', label: 'All' },
   { id: 'en', label: 'English' },
   { id: 'fr', label: 'Français' },
   { id: 'ar', label: 'العربية' },
   { id: 'multi', label: 'Multi-Lang' },
 ] as const;
 
-export function SourcesView({ embedded = false }: { embedded?: boolean }) {
+export function SourcesView() {
   const t = useT();
   const {
     sources,
     engineStatus,
     settings,
     updateSettings,
+    setActiveView,
     setExploreSource,
     verifyWorkingSources,
     verifyingSources,
@@ -29,15 +30,43 @@ export function SourcesView({ embedded = false }: { embedded?: boolean }) {
   const [unlocking, setUnlocking] = useState<string | null>(null);
   const [showAllCf, setShowAllCf] = useState(false);
   const [allSources, setAllSources] = useState<SourceInfo[] | null>(null);
+  const [localSources, setLocalSources] = useState<SourceInfo[] | null>(null);
 
-  const activePool = showAllCf && allSources ? allSources : sources;
+  useEffect(() => {
+    if (sources.length > 0) {
+      setLocalSources(null);
+      return;
+    }
+    let cancelled = false;
+    void window.noctis
+      .getEngineStatus()
+      .then(async (st) => {
+        if (!st.ready || !st.url) return;
+        const list = await fetchSources(st.url, false);
+        const filtered = list.filter((s) => ['en', 'fr', 'ar', ''].includes(s.locale));
+        if (!cancelled) {
+          setLocalSources(filtered);
+          useAppStore.setState({ engineStatus: st, sources: filtered });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [sources.length]);
+
+  const baseSources = sources.length > 0 ? sources : (localSources ?? []);
+  const activePool = showAllCf && allSources ? allSources : baseSources;
 
   const toggleShowAllCf = async () => {
     const next = !showAllCf;
     setShowAllCf(next);
-    if (next && !allSources && engineStatus.ready && engineStatus.url) {
-      const list = await fetchSources(engineStatus.url, true);
-      setAllSources(list.filter((s) => ['en', 'fr', 'ar', ''].includes(s.locale)));
+    if (next && !allSources) {
+      const st = engineStatus.ready && engineStatus.url ? engineStatus : await window.noctis.getEngineStatus();
+      if (st.ready && st.url) {
+        const list = await fetchSources(st.url, true);
+        setAllSources(list.filter((s) => ['en', 'fr', 'ar', ''].includes(s.locale)));
+      }
     }
   };
 
@@ -85,22 +114,22 @@ export function SourcesView({ embedded = false }: { embedded?: boolean }) {
   };
 
   return (
-    <div className={embedded ? 'flex w-full flex-col' : 'flex h-full w-full flex-col overflow-hidden'}>
-      <div
-        className={`flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] ${
-          embedded ? 'pb-3' : 'px-6 py-4'
-        }`}
-      >
-        {!embedded && (
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-bold tracking-tight text-white">{t.sources.title}</h1>
-              <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-0.5 font-mono-tech text-[10px] text-zinc-300">
-                {counts.all}
-              </span>
-            </div>
-          </div>
-        )}
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-3.5 sm:px-6">
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setActiveView('settings')}
+            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 cursor-pointer"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>{t.nav.back}</span>
+          </button>
+          <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">{t.sources.title}</h1>
+          <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-0.5 font-mono-tech text-[10px] text-zinc-300">
+            {counts.all}
+          </span>
+        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
@@ -114,20 +143,30 @@ export function SourcesView({ embedded = false }: { embedded?: boolean }) {
           </div>
 
           <button
+            onClick={() => void updateSettings({ showNsfw: !settings.showNsfw })}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
+              settings.showNsfw
+                ? 'accent-bg border-white/40'
+                : 'border-white/15 bg-white/[0.06] text-zinc-300 hover:border-white/30 hover:text-white'
+            }`}
+          >
+            18+
+          </button>
+
+          <button
             onClick={() => void toggleShowAllCf()}
             className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
               showAllCf
                 ? 'accent-bg border-white/40'
                 : 'border-white/15 bg-white/[0.06] text-zinc-300 hover:border-white/30 hover:text-white'
             }`}
-            title="Show CF-gated & unverified EN/FR/AR extensions to unlock them"
           >
             <Shield className="h-3.5 w-3.5" />
             <span>{showAllCf ? t.sources.showingAll : t.sources.cfMode}</span>
           </button>
 
           <button
-            onClick={verifyWorkingSources}
+            onClick={() => void verifyWorkingSources()}
             disabled={verifyingSources}
             className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-4 py-1.5 text-xs font-medium text-white transition hover:border-white/30 hover:bg-white/10 disabled:opacity-50 cursor-pointer"
           >
@@ -142,7 +181,7 @@ export function SourcesView({ embedded = false }: { embedded?: boolean }) {
       </div>
 
       {/* Language Tabs */}
-      <div className={`flex flex-wrap items-center gap-2 border-b border-white/[0.05] ${embedded ? 'py-3' : 'px-6 py-3'}`}>
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-white/[0.05] px-4 py-2.5 sm:px-6">
         {LANG_TABS.map((tab) => {
           const active = langFilter === tab.id;
           const count = counts[tab.id];
@@ -150,7 +189,7 @@ export function SourcesView({ embedded = false }: { embedded?: boolean }) {
             <button
               key={tab.id}
               onClick={() => setLangFilter(tab.id)}
-              className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
                 active
                   ? 'bg-white text-black'
                   : 'border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white'
@@ -162,77 +201,89 @@ export function SourcesView({ embedded = false }: { embedded?: boolean }) {
         })}
       </div>
 
-      <div className={embedded ? 'max-h-[420px] overflow-y-auto pt-3 pr-1' : 'flex-1 overflow-y-auto p-6'}>
-        <div
-          className={`grid grid-cols-1 gap-3 ${
-            embedded ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-          }`}
-        >
-          {filtered.map((src) => {
-            const pinned = settings.pinnedSources.includes(src.name);
-            return (
-              <div
-                key={src.name}
-                className="cv-chapter flex items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 transition hover:border-white/20 hover:bg-white/[0.06]"
-              >
-                <div className="min-w-0 pr-3">
-                  <div className="flex items-center gap-2">
-                    <h3 className="truncate text-sm font-semibold text-white">{src.title}</h3>
-                    <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono-tech text-[9px] uppercase text-zinc-300">
-                      {src.locale || 'MULTI'}
-                    </span>
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        {filtered.length > 0 ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filtered.map((src) => {
+              const pinned = settings.pinnedSources.includes(src.name);
+              return (
+                <div
+                  key={src.name}
+                  className="cv-chapter flex items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 transition hover:border-white/20 hover:bg-white/[0.06]"
+                >
+                  <div className="min-w-0 pr-3">
+                    <div className="flex items-center gap-2">
+                      <h3 className="truncate text-sm font-semibold text-white">{src.title}</h3>
+                      <span className="rounded bg-white/10 px-1.5 py-0.5 font-mono-tech text-[9px] uppercase text-zinc-300">
+                        {src.locale || 'MULTI'}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate font-mono-tech text-[11px] text-zinc-500">
+                      {src.domain || src.contentType}
+                    </p>
                   </div>
-                  <p className="mt-1 truncate font-mono-tech text-[11px] text-zinc-500">
-                    {src.domain || src.contentType}
-                  </p>
-                </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {src.domain && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {src.domain && (
+                      <button
+                        onClick={async () => {
+                          setUnlocking(src.name);
+                          try {
+                            await window.noctis.solveCloudflare(`https://${src.domain}/`);
+                          } finally {
+                            setUnlocking(null);
+                          }
+                        }}
+                        title="Solve Cloudflare / Refresh Cookies"
+                        className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-400 transition hover:border-white/25 hover:text-white cursor-pointer"
+                      >
+                        {unlocking === src.name ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Shield className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    )}
+
                     <button
-                      onClick={async () => {
-                        setUnlocking(src.name);
-                        try {
-                          await window.noctis.solveCloudflare(`https://${src.domain}/`);
-                        } finally {
-                          setUnlocking(null);
-                        }
-                      }}
-                      title="Solve Cloudflare / Refresh Cookies"
-                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-400 transition hover:border-white/25 hover:text-white cursor-pointer"
+                      onClick={() => togglePin(src.name)}
+                      title={pinned ? 'Unpin from Home & Search' : 'Pin to Home & Search'}
+                      className={`flex h-8 w-8 items-center justify-center rounded-xl border transition cursor-pointer ${
+                        pinned
+                          ? 'border-white/30 bg-white text-black'
+                          : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:text-white'
+                      }`}
                     >
-                      {unlocking === src.name ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Shield className="h-3.5 w-3.5" />
-                      )}
+                      <Pin className="h-3.5 w-3.5" />
                     </button>
-                  )}
 
-                  <button
-                    onClick={() => togglePin(src.name)}
-                    title={pinned ? 'Unpin from Home & Quick Search' : 'Pin to Home & Quick Search'}
-                    className={`flex h-8 w-8 items-center justify-center rounded-xl border transition cursor-pointer ${
-                      pinned
-                        ? 'border-white/30 bg-white text-black'
-                        : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <Pin className="h-3.5 w-3.5" />
-                  </button>
-
-                  <button
-                    onClick={() => setExploreSource(src.name)}
-                    title="Browse Source"
-                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:border-white/25 hover:bg-white/10 hover:text-white cursor-pointer"
-                  >
-                    <ArrowUpRight className="h-4 w-4" />
-                  </button>
+                    <button
+                      onClick={() => setExploreSource(src.name)}
+                      title="Browse Source"
+                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:border-white/25 hover:bg-white/10 hover:text-white cursor-pointer"
+                    >
+                      <ArrowUpRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+            <p className="text-sm text-zinc-400">
+              {verifyingSources ? 'Loading sources...' : 'No sources loaded yet.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => void verifyWorkingSources()}
+              disabled={verifyingSources}
+              className="accent-bg rounded-full px-5 py-2 text-xs font-semibold cursor-pointer"
+            >
+              {verifyingSources ? t.sources.scanning : t.sources.reverify}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

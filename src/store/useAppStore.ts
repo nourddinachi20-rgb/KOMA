@@ -510,8 +510,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ activeView: 'library', libraryTab: 'updates' });
     } else if (view === 'downloads') {
       set({ activeView: 'library', libraryTab: 'offline' });
-    } else if (view === 'sources') {
-      set({ activeView: 'settings', settingsFocusSection: 'sources' });
     } else {
       set({ activeView: view });
     }
@@ -799,7 +797,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   bootstrap: async () => {
     const api = window.noctis;
-    const [categories, library, updates, stats, trackerConfig, history, downloads, settings, homeCache, engineStatus, appVersion] =
+    let earlyEngineStatus: EngineStatus | null = null;
+    let hydrated = false;
+    let pendingReadyHandler: ((status: EngineStatus) => Promise<void>) | null = null;
+
+    const unsubEarly = api.onEngineStatus((nextStatus) => {
+      earlyEngineStatus = nextStatus;
+      if (hydrated && pendingReadyHandler) {
+        void pendingReadyHandler(nextStatus);
+      }
+    });
+
+    const [categories, library, updates, stats, trackerConfig, history, downloads, settings, homeCache, initialEngineStatus, appVersion] =
       await Promise.all([
         api.getCategories(),
         api.getLibrary(),
@@ -813,6 +822,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         api.getEngineStatus(),
         api.getAppVersion().catch(() => '1.0.0'),
       ]);
+
+    const engineStatus =
+      earlyEngineStatus && (earlyEngineStatus as EngineStatus).ready
+        ? (earlyEngineStatus as EngineStatus)
+        : initialEngineStatus;
 
     const currentHour = Math.floor(Date.now() / HOUR_MS);
     const validHomeCache =
@@ -912,12 +926,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ appUpdateProgress });
     });
 
+    let engineHandledUrl = '';
     const handleEngineReady = async (status: EngineStatus) => {
       set({ engineStatus: status });
       if (!status.ready || !status.url) {
         if (status.error) set({ bootStage: 'ready' });
         return;
       }
+      if (engineHandledUrl === status.url && get().sources.length > 0) {
+        if (get().bootStage !== 'ready') set({ bootStage: 'ready' });
+        return;
+      }
+      engineHandledUrl = status.url;
 
       if (!cacheIsFresh) set({ bootStage: 'warming' });
       set({ sourcesLoading: true });
@@ -959,14 +979,26 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     };
 
-    const unsubEngine = api.onEngineStatus((nextStatus) => {
-      void handleEngineReady(nextStatus);
-    });
+    hydrated = true;
+    pendingReadyHandler = handleEngineReady;
 
-    if (engineStatus.ready && engineStatus.url) {
-      unsubEngine();
-      await handleEngineReady(engineStatus);
+    const latestEngine =
+      engineStatus.ready && engineStatus.url
+        ? engineStatus
+        : await api.getEngineStatus().catch(() => engineStatus);
+
+    if (latestEngine.ready && latestEngine.url) {
+      unsubEarly();
+      await handleEngineReady(latestEngine);
     } else {
+      for (const waitMs of [500, 1500, 3000, 5000]) {
+        setTimeout(() => {
+          if (get().sources.length > 0 && get().engineStatus.ready) return;
+          void api.getEngineStatus().then((st) => {
+            if (st.ready && st.url) void handleEngineReady(st);
+          }).catch(() => {});
+        }, waitMs);
+      }
       setTimeout(() => {
         if (get().bootStage !== 'ready') set({ bootStage: 'ready' });
       }, 7500);
@@ -984,15 +1016,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   verifyWorkingSources: async () => {
-    const { engineStatus, verifyingSources } = get();
-    if (!engineStatus.ready || !engineStatus.url || verifyingSources) return;
+    if (get().verifyingSources) return;
     set({ verifyingSources: true });
     try {
-      await fetch(`${engineStatus.url}/api/sources/verify`, { method: 'POST' });
-      const rawSources = await fetchSources(engineStatus.url, false);
+      let status = get().engineStatus;
+      if (!status.ready || !status.url) {
+        status = await window.noctis.getEngineStatus().catch(() => status);
+        if (!status.ready || !status.url) {
+          status = await window.noctis.restartEngine().catch(() => status);
+        }
+        set({ engineStatus: status });
+      }
+      if (!status.ready || !status.url) {
+        get().notify('Source engine is still starting, try again in a moment', 'error');
+        return;
+      }
+      await fetch(`${status.url}/api/sources/verify`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(25_000),
+      }).catch(() => {});
+      const rawSources = await fetchSources(status.url, false);
       const filtered = rawSources.filter((s) => ALLOWED_LOCALES.has(s.locale));
-      set({ sources: filtered });
+      set({ sources: filtered, bootStage: 'ready' });
       get().notify(`${filtered.length} sources ready`, 'success');
+    } catch (err) {
+      get().notify(err instanceof Error ? err.message : 'Failed to load sources', 'error');
     } finally {
       set({ verifyingSources: false });
     }

@@ -64,7 +64,8 @@ export function MobileBottomNav() {
   };
 
   const navBtn = (view: NavView, label: string, Icon: typeof Home, badge = 0) => {
-    const active = activeView === view && !commandOpen;
+    const active =
+      (activeView === view || (view === 'settings' && activeView === 'sources')) && !commandOpen;
     return (
       <button
         key={view}
@@ -92,8 +93,8 @@ export function MobileBottomNav() {
   };
 
   return (
-    <div className="pb-safe relative z-40 shrink-0 border-t border-white/[0.08] bg-black/95 px-2 pt-1.5 pb-1.5 select-none md:flex md:justify-center">
-      <nav className="grid w-full grid-cols-5 items-center gap-1 md:max-w-lg">
+    <div className="pb-safe relative z-40 shrink-0 border-t border-white/[0.08] bg-black/95 px-2 pt-2 pb-1.5 select-none md:flex md:justify-center">
+      <nav className="grid w-full grid-cols-5 items-end gap-1 md:max-w-lg">
         {navBtn('home', t.nav.home, Home)}
         {navBtn('library', t.nav.library, Library, updates.length)}
 
@@ -101,10 +102,10 @@ export function MobileBottomNav() {
           type="button"
           onClick={() => setCommandOpen(true)}
           aria-label={t.nav.search}
-          className="group flex flex-col items-center justify-center gap-0.5 py-0.5 cursor-pointer"
+          className="group flex flex-col items-center justify-center gap-0.5 pt-1 pb-0.5 cursor-pointer"
         >
-          <div className="accent-bg -mt-2 flex h-11 w-12 items-center justify-center rounded-2xl border border-white/15 shadow-[0_6px_22px_rgba(var(--koma-accent-rgb),0.28)] transition-transform duration-150 group-hover:scale-105 group-active:scale-95">
-            <Search className="h-5 w-5" strokeWidth={2.3} />
+          <div className="accent-bg flex h-9 w-12 items-center justify-center rounded-2xl border border-white/15 shadow-[0_6px_22px_rgba(var(--koma-accent-rgb),0.28)] transition-transform duration-150 group-hover:scale-105 group-active:scale-95">
+            <Search className="h-[18px] w-[18px]" strokeWidth={2.3} />
           </div>
           <span className="text-[10px] font-semibold text-white">{t.nav.search}</span>
         </button>
