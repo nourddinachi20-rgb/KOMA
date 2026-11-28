@@ -19,6 +19,7 @@ const cacheTag = Date.now().toString(36);
 const rawHtml = fs.readFileSync(path.join(root, 'website', 'index.html'), 'utf8');
 const bustedHtml = rawHtml.replace('./app.js', `./app.js?v=${cacheTag}`);
 fs.writeFileSync(path.join(docsDir, 'index.html'), bustedHtml, 'utf8');
+fs.writeFileSync(path.join(docsDir, '.nojekyll'), '', 'utf8');
 if (fs.existsSync(path.join(root, 'assets', 'icon.png'))) {
   fs.copyFileSync(path.join(root, 'assets', 'icon.png'), path.join(docsDir, 'icon.png'));
 }
