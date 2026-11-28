@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.1.3';
+const DEFAULT_VERSION = '1.1.4';
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -21,6 +21,14 @@ interface GitHubRelease {
 }
 
 const FALLBACK_RELEASES: GitHubRelease[] = [
+  {
+    tag_name: 'v1.1.4',
+    name: 'KOMA v1.1.4',
+    published_at: '2026-11-28T03:45:00Z',
+    body: `### Improvements
+- **Instant Lag-Free Bundled Intro:** Ships 12 pre-sized lightweight manga covers locally inside the app and eliminates mid-boot store re-renders and remote cover decoding during the splash screen so startup is smooth from frame 0.
+- **Removed AsuraScans Extension:** Dropped AsuraScans from bundled sources, defaults, and pre-warming, and marks existing AsuraScans library entries as migratable.`,
+  },
   {
     tag_name: 'v1.1.3',
     name: 'KOMA v1.1.3',

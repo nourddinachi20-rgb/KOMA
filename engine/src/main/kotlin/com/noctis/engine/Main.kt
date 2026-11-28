@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 private val ALLOWED_LOCALES = setOf("en", "fr", "ar", "")
+private val DISABLED_SOURCES = setOf("ASURASCANS", "ASURATOON")
 private val verifiedCacheFile = File(System.getProperty("user.home"), ".koma-verified-sources.json")
 private val verifiedSources: MutableSet<String> = ConcurrentHashMap.newKeySet()
 private val imageWriteCounter = AtomicInteger(0)
@@ -118,13 +119,14 @@ private fun loadInitialVerifiedSources() {
             for (i in 0 until arr.length()) {
                 val obj = arr.optJSONObject(i) ?: continue
                 val name = obj.optString("name", "")
-                if (name.isNotBlank()) verifiedSources.add(name)
+                if (name.isNotBlank() && name !in DISABLED_SOURCES && !name.contains("ASURA")) {
+                    verifiedSources.add(name)
+                }
             }
         }
     }
     // Ensure top curated & custom sources are always registered if reachable
     verifiedSources.addAll(CustomSourceRegistry.defs.keys)
-    verifiedSources.add("ASURASCANS")
 }
 
 private fun saveVerifiedSources(items: List<JSONObject>) {
@@ -144,7 +146,7 @@ fun main(args: Array<String>) {
     // Delay parser pre-warming slightly so /health responds immediately on startup
     CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
         delay(2_500L)
-        for (name in listOf("MANGADEX", "ASURASCANS", "WEEBCENTRAL", "MANGAPILL", "MANGAREAD", "LELMANGA", "TEAMXNOVEL")) {
+        for (name in listOf("MANGADEX", "MANGABALL_EN", "WEEBCENTRAL", "MANGAPILL", "MANGAREAD", "LELMANGA", "TEAMXNOVEL")) {
             resolveSource(name)?.let { runCatching { NoctisMangaLoaderContext.getParser(it) } }
         }
     }
@@ -194,6 +196,7 @@ fun main(args: Array<String>) {
 
                 // 2. Bundled Kotatsu sources filtered strictly to EN / FR / AR / Multi & verified working
                 for (src in MangaParserSource.entries) {
+                    if (src.name in DISABLED_SOURCES || src.name.contains("ASURA")) continue
                     if (src.locale !in ALLOWED_LOCALES) continue
                     if (!includeUnverified && src.name !in verifiedSources) continue
                     val parser = runCatching { NoctisMangaLoaderContext.getParser(src) }.getOrNull()
@@ -242,7 +245,9 @@ fun main(args: Array<String>) {
 
             post("/api/sources/verify") {
                 val sem = Semaphore(24)
-                val candidates = MangaParserSource.entries.filter { it.locale in ALLOWED_LOCALES }
+                val candidates = MangaParserSource.entries.filter {
+                    it.locale in ALLOWED_LOCALES && it.name !in DISABLED_SOURCES && !it.name.contains("ASURA")
+                }
                 val working = coroutineScope {
                     candidates.map { src ->
                         async(Dispatchers.IO) {
@@ -573,6 +578,6 @@ private fun sha256(input: String): String {
 }
 
 private fun resolveSource(name: String?): MangaParserSource? {
-    if (name.isNullOrBlank()) return null
+    if (name.isNullOrBlank() || name in DISABLED_SOURCES || name.contains("ASURA")) return null
     return runCatching { MangaParserSource.valueOf(name) }.getOrNull()
 }

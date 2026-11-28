@@ -183,8 +183,6 @@ function normalizeSourceToken(name: string): string {
 const KNOWN_SOURCE_ALIASES: Record<string, string[]> = {
   mangadex: ['MANGADEX'],
   mangaball: ['MANGABALL_EN', 'MANGABALL'],
-  asurascans: ['ASURASCANS', 'ASURATOON'],
-  asuracomic: ['ASURASCANS'],
   weebcentral: ['WEEBCENTRAL'],
   mangapill: ['MANGAPILL'],
   mangaread: ['MANGAREAD'],

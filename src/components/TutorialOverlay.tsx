@@ -47,7 +47,7 @@ const TOUR_STEPS: TourStep[] = [
     title: 'All Verified EN / FR / AR Sources & Ctrl+K',
     badge: 'DISCOVERY & SEARCH',
     description:
-      'Browse catalogs natively from MangaBall, MangaDex, AsuraScans, WeebCentral, MangaRead, LELManga, TeamXNovel, and more — or hit Search (Ctrl+K) to query multiple sources at once.',
+      'Browse catalogs natively from MangaBall, MangaDex, WeebCentral, MangaRead, LELManga, TeamXNovel, and more — or hit Search (Ctrl+K) to query multiple sources at once.',
     highlights: [
       'Explore infinite-scroll catalogs filtered strictly to working EN, FR & AR extensions',
       'Built-in Cloudflare challenge solver so protected sources unlock seamlessly',

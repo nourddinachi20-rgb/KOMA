@@ -118,7 +118,6 @@ const DEFAULT_SETTINGS: AppSettings = {
     'MANGABALL_EN',
     'MANGADEX',
     'WEEBCENTRAL',
-    'ASURASCANS',
     'MANGAPILL',
     'MANGAREAD',
     'LELMANGA',

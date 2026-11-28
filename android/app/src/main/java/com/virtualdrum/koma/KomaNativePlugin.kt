@@ -1228,7 +1228,7 @@ class KomaNativePlugin : Plugin() {
               "uiTheme":"oled",
               "accentColor":"#FFFFFF",
               "showNsfw":false,
-              "pinnedSources":["MANGABALL_EN","MANGADEX","WEEBCENTRAL","ASURASCANS","MANGAPILL","MANGAREAD","LELMANGA","TEAMXNOVEL"],
+              "pinnedSources":["MANGABALL_EN","MANGADEX","WEEBCENTRAL","MANGAPILL","MANGAREAD","LELMANGA","TEAMXNOVEL"],
               "defaultReaderMode":"webtoon",
               "defaultFitMode":"width",
               "mangaReaderPrefs":{},

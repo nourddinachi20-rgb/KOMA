@@ -204,7 +204,7 @@ export function CommandPalette() {
                     Multi-source instant search across {settings.pinnedSources.length} pinned sources
                   </p>
                   <p className="mt-1 text-xs text-zinc-600">
-                    Type a title and hit Enter to query MangaDex, Asura, MangaKatana, Comick, and more simultaneously.
+                    Type a title and hit Enter to query MangaDex, WeebCentral, MangaBall, MangaKatana, and more simultaneously.
                   </p>
                 </div>
               )}

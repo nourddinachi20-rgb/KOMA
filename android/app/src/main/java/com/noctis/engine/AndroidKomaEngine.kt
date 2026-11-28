@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 object AndroidKomaEngine {
     private val ALLOWED_LOCALES = setOf("en", "fr", "ar", "")
+    private val DISABLED_SOURCES = setOf("ASURASCANS", "ASURATOON")
     private val verifiedSources: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val imageWriteCounter = AtomicInteger(0)
     private const val MAX_IMAGE_CACHE_BYTES = 1024L * 1024L * 1024L // 1 GB LRU cap on mobile
@@ -127,13 +128,13 @@ object AndroidKomaEngine {
         verifiedSources.clear()
         val curatedDefaults = listOf(
             "MANGADEX", "MANGABALL_EN", "MANGABALL_FR", "MANGABALL_AR", "MANGABALL",
-            "ASURASCANS", "WEEBCENTRAL", "MANGAPILL", "MANGAREAD", "LELMANGA",
+            "WEEBCENTRAL", "MANGAPILL", "MANGAREAD", "LELMANGA",
             "TEAMXNOVEL", "MANGAKATANA", "BATO", "MANGAFIRE", "TOONILY", "TCBSCANS",
             "FMTEAM", "SCANTRA", "SCANS_MANGAS", "LELSCANVF", "MANGA_ORIGINES",
             "ARABMANGA", "MANGA_SPARK", "GMANGA", "AZORAMANGA", "OLYMPUSTAFF"
         )
         for (name in curatedDefaults) {
-            if (CustomSourceRegistry.isCustom(name) || resolveSource(name) != null) {
+            if (name !in DISABLED_SOURCES && (CustomSourceRegistry.isCustom(name) || resolveSource(name) != null)) {
                 verifiedSources.add(name)
             }
         }
@@ -143,14 +144,13 @@ object AndroidKomaEngine {
                 for (i in 0 until arr.length()) {
                     val obj = arr.optJSONObject(i) ?: continue
                     val name = obj.optString("name", "")
-                    if (name.isNotBlank() && (resolveSource(name) != null || CustomSourceRegistry.isCustom(name))) {
+                    if (name.isNotBlank() && name !in DISABLED_SOURCES && (resolveSource(name) != null || CustomSourceRegistry.isCustom(name))) {
                         verifiedSources.add(name)
                     }
                 }
             }
         }
         verifiedSources.addAll(CustomSourceRegistry.defs.keys)
-        verifiedSources.add("ASURASCANS")
     }
 
     private fun saveVerifiedSources(items: List<JSONObject>) {
@@ -160,7 +160,7 @@ object AndroidKomaEngine {
     }
 
     private fun resolveSource(name: String?): MangaParserSource? {
-        if (name.isNullOrBlank()) return null
+        if (name.isNullOrBlank() || name in DISABLED_SOURCES || name.contains("ASURA")) return null
         return runCatching { MangaParserSource.valueOf(name) }.getOrNull()
     }
 
@@ -220,6 +220,7 @@ object AndroidKomaEngine {
                         arr.put(CustomSourceRegistry.sourceToJson(def))
                     }
                     for (src in MangaParserSource.entries) {
+                        if (src.name in DISABLED_SOURCES || src.name.contains("ASURA")) continue
                         if (src.locale !in ALLOWED_LOCALES) continue
                         if (!includeUnverified && src.name !in verifiedSources) continue
                         val parser = runCatching { NoctisMangaLoaderContext.getParser(src) }.getOrNull()
@@ -264,7 +265,9 @@ object AndroidKomaEngine {
 
                 post("/api/sources/verify") {
                     val sem = Semaphore(16)
-                    val candidates = MangaParserSource.entries.filter { it.locale in ALLOWED_LOCALES }
+                    val candidates = MangaParserSource.entries.filter {
+                        it.locale in ALLOWED_LOCALES && it.name !in DISABLED_SOURCES && !it.name.contains("ASURA")
+                    }
                     val working = coroutineScope {
                         candidates.map { src ->
                             async(Dispatchers.IO) {
@@ -513,7 +516,7 @@ object AndroidKomaEngine {
 
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
             delay(2_500L)
-            for (name in listOf("MANGADEX", "ASURASCANS", "WEEBCENTRAL", "MANGAREAD")) {
+            for (name in listOf("MANGADEX", "MANGABALL_EN", "WEEBCENTRAL", "MANGAREAD")) {
                 resolveSource(name)?.let { runCatching { NoctisMangaLoaderContext.getParser(it) } }
             }
         }

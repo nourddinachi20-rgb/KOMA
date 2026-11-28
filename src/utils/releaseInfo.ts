@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.1.3';
+export const APP_VERSION = '1.1.4';
 
 export interface ChangelogSection {
   title: string;
@@ -6,9 +6,9 @@ export interface ChangelogSection {
   items: string[];
 }
 
-export const DEFAULT_WHATS_NEW_NOTES = `### Fixes
-- **Cross-App Reading Statistics:** Library statistics now include all series, finished chapters, estimated/tracked pages, reading days, and genres imported from Kotatsu, Mihon, and Komikku alongside in-app reading (plus \`Manga Read\` series count and stats sync across devices).
-- **Hero Spotlight Layout & Missing Synopses:** Prefetches details across every Spotlight slide with AniList synopsis/genre fallback when a source omits them, places genres right under the author name, positions description between the cover/title row and buttons, and keeps Read Now, Details & Chapters, and Bookmark on one clean row.`;
+export const DEFAULT_WHATS_NEW_NOTES = `### Improvements
+- **Instant Lag-Free Bundled Intro:** Ships 12 pre-sized lightweight manga covers locally inside the app (\`./splash/tile-*.jpg\`) and eliminates mid-boot store re-renders, remote cover decoding, and heavy exit scaling so the startup screen runs smoothly at 60fps from frame 0.
+- **Removed AsuraScans Extension:** Dropped AsuraScans from bundled sources, defaults, and pre-warming, and marks existing AsuraScans library items as migratable.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

@@ -11,6 +11,8 @@ export const KNOWN_BROKEN_SOURCES = new Set([
   'LUMINOUSSCANS',
   'MANHUARM',
   'MANGA_DEMON',
+  'ASURASCANS',
+  'ASURATOON',
 ]);
 
 /** Strips HTML tags, markdown links/bold markers, and divider rules from synopses. */
