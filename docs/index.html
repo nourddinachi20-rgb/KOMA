@@ -404,6 +404,79 @@
         flex-shrink: 0;
       }
 
+      .changelog-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .release-entry {
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.02);
+        overflow: hidden;
+      }
+      .release-entry[data-latest='true'] {
+        border-color: rgba(255, 255, 255, 0.24);
+        background: rgba(255, 255, 255, 0.035);
+      }
+      .release-head {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 20px;
+        background: transparent;
+        border: 0;
+        color: #fff;
+        text-align: left;
+        cursor: pointer;
+      }
+      .release-head:hover {
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .release-head-left {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .release-tag {
+        font-size: 13px;
+        font-weight: 800;
+        color: #fff;
+      }
+      .badge-latest {
+        border-radius: 9999px;
+        background: #fff;
+        color: #000;
+        padding: 3px 9px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .release-date {
+        font-size: 11px;
+        color: var(--dim);
+      }
+      .release-body {
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+        padding: 18px 20px 20px;
+      }
+      .release-body[hidden] {
+        display: none;
+      }
+
       footer {
         border-top: 1px solid rgba(255, 255, 255, 0.08);
         padding: 32px 0 42px;
@@ -628,32 +701,15 @@
       </section>
 
       <section class="section shell" id="whats-new">
-        <h2 class="section-title" id="whats-new-title">Changelog · v1.0.8</h2>
-        <p class="section-sub">Synced with latest release.</p>
-
-        <div id="release-notes-grid" class="notes-grid">
-          <div class="card-surface">
-            <div class="mono notes-title">Features</div>
-            <ul class="notes-list">
-              <li><span class="dot-white"></span><span>Windows portable EXE and Android phone/tablet APK.</span></li>
-              <li><span class="dot-white"></span><span>Theme &amp; color customization plus English / French / Arabic UI.</span></li>
-              <li><span class="dot-white"></span><span>In-app updates from Settings with restart &amp; changelog.</span></li>
-            </ul>
+        <div class="changelog-toolbar">
+          <div>
+            <h2 class="section-title" id="whats-new-title">Changelog · v1.0.8</h2>
+            <p class="section-sub" style="margin-bottom:0;">Full release history from v1.0.0 to today.</p>
           </div>
-          <div class="card-surface">
-            <div class="mono notes-title">Reader</div>
-            <ul class="notes-list">
-              <li><span class="dot-white"></span><span>Webtoon, RTL, LTR &amp; spread modes with zoom &amp; auto-scroll.</span></li>
-              <li><span class="dot-white"></span><span>Offline CBZ chapter downloads grouped by series.</span></li>
-            </ul>
-          </div>
-          <div class="card-surface">
-            <div class="mono notes-title">Sources &amp; Tracking</div>
-            <ul class="notes-list">
-              <li><span class="dot-white"></span><span>EN / FR / AR sources with Cloudflare solver &amp; AniList sync.</span></li>
-            </ul>
-          </div>
+          <button type="button" id="btn-toggle-history" class="tab-btn">Expand all</button>
         </div>
+
+        <div id="release-history-list" class="history-list"></div>
       </section>
     </main>
 
