@@ -2,7 +2,7 @@ import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
 const DEFAULT_VERSION = '1.1.1';
-const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/latest/download/KOMA-Android.apk`;
+const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
   name: string;
@@ -14,6 +14,8 @@ interface GitHubRelease {
   tag_name?: string;
   name?: string;
   body?: string;
+  draft?: boolean;
+  prerelease?: boolean;
   published_at?: string;
   assets?: GitHubReleaseAsset[];
 }
@@ -178,7 +180,23 @@ function formatDate(iso?: string): string {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-async function renderQr(url: string): Promise<void> {
+function normalizeVer(raw?: string): string {
+  return (raw || '').replace(/^v/i, '').trim();
+}
+
+function compareSemver(aRaw: string, bRaw: string): number {
+  const aParts = normalizeVer(aRaw).split('.').map((p) => Number.parseInt(p.replace(/[^0-9].*$/, ''), 10) || 0);
+  const bParts = normalizeVer(bRaw).split('.').map((p) => Number.parseInt(p.replace(/[^0-9].*$/, ''), 10) || 0);
+  const len = Math.max(aParts.length, bParts.length, 3);
+  for (let i = 0; i < len; i++) {
+    const a = aParts[i] ?? 0;
+    const b = bParts[i] ?? 0;
+    if (a !== b) return a > b ? 1 : -1;
+  }
+  return 0;
+}
+
+async function renderQr(url: string, versionLabel?: string): Promise<void> {
   const container = document.getElementById('apk-qr');
   if (!container) return;
   try {
@@ -189,6 +207,10 @@ async function renderQr(url: string): Promise<void> {
       color: { dark: '#FFFFFF', light: '#0A0A0D' },
     });
     container.innerHTML = svg;
+    const caption = document.getElementById('apk-qr-caption');
+    if (caption && versionLabel) {
+      caption.textContent = `QR · v${versionLabel}`;
+    }
   } catch {
     container.textContent = 'QR';
   }
@@ -354,47 +376,73 @@ async function init(): Promise<void> {
     winCard.classList.add('card-highlighted');
   }
 
-  await renderQr(DEFAULT_APK_URL);
+  await renderQr(DEFAULT_APK_URL, DEFAULT_VERSION);
 
   try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=30`, {
+    const fetchOpts: RequestInit = {
+      cache: 'no-store',
       headers: { Accept: 'application/vnd.github+json' },
-    });
-    if (!res.ok) return;
-    const list = (await res.json()) as GitHubRelease[];
-    if (!Array.isArray(list) || list.length === 0) return;
+    };
+    const [releasesSettled, latestSettled] = await Promise.allSettled([
+      fetch(`https://api.github.com/repos/${REPO}/releases?per_page=30`, fetchOpts),
+      fetch(`https://api.github.com/repos/${REPO}/releases/latest`, fetchOpts),
+    ]);
 
-    const rel = list[0];
-    const ver = (rel.tag_name || rel.name || DEFAULT_VERSION).replace(/^v/i, '').trim();
-
-    document.querySelectorAll('[data-version-pill]').forEach((el) => {
-      el.textContent = `v${ver}`;
-    });
-
-    const assets = rel.assets ?? [];
-    const exeAsset =
-      assets.find((a) => a.name.toLowerCase().includes('portable') && a.name.toLowerCase().endsWith('.exe')) ??
-      assets.find((a) => a.name.toLowerCase().endsWith('.exe'));
-    const apkAsset = assets.find((a) => a.name.toLowerCase().endsWith('.apk'));
-
-    if (exeAsset) {
-      const btn = document.getElementById('btn-download-win') as HTMLAnchorElement | null;
-      const meta = document.getElementById('meta-win');
-      if (btn) btn.href = exeAsset.browser_download_url;
-      if (meta) meta.textContent = `${exeAsset.name} · ${formatMb(exeAsset.size)}`;
+    const candidates: GitHubRelease[] = [];
+    if (releasesSettled.status === 'fulfilled' && releasesSettled.value.ok) {
+      const list = (await releasesSettled.value.json()) as GitHubRelease[];
+      if (Array.isArray(list)) candidates.push(...list.filter((r) => !r.draft && !r.prerelease));
+    }
+    if (latestSettled.status === 'fulfilled' && latestSettled.value.ok) {
+      const latestRel = (await latestSettled.value.json()) as GitHubRelease;
+      if (latestRel && !latestRel.draft && !latestRel.prerelease) {
+        const tag = normalizeVer(latestRel.tag_name || latestRel.name);
+        if (tag && !candidates.some((c) => normalizeVer(c.tag_name || c.name) === tag)) {
+          candidates.unshift(latestRel);
+        }
+      }
     }
 
-    if (apkAsset) {
-      const btn = document.getElementById('btn-download-apk') as HTMLAnchorElement | null;
-      const meta = document.getElementById('meta-apk');
-      if (btn) btn.href = apkAsset.browser_download_url;
-      if (meta) meta.textContent = `${apkAsset.name} · ${formatMb(apkAsset.size)}`;
-      await renderQr(apkAsset.browser_download_url);
+    if (candidates.length === 0) return;
+
+    candidates.sort((a, b) =>
+      compareSemver(normalizeVer(b.tag_name || b.name), normalizeVer(a.tag_name || a.name)),
+    );
+
+    const rel = candidates[0];
+    const ver = normalizeVer(rel.tag_name || rel.name) || DEFAULT_VERSION;
+
+    if (compareSemver(ver, DEFAULT_VERSION) >= 0) {
+      document.querySelectorAll('[data-version-pill]').forEach((el) => {
+        el.textContent = `v${ver}`;
+      });
+
+      const assets = rel.assets ?? [];
+      const exeAsset =
+        assets.find((a) => a.name.toLowerCase().includes('portable') && a.name.toLowerCase().endsWith('.exe')) ??
+        assets.find((a) => a.name.toLowerCase().endsWith('.exe'));
+      const apkAsset = assets.find((a) => a.name.toLowerCase().endsWith('.apk'));
+
+      if (exeAsset) {
+        const btn = document.getElementById('btn-download-win') as HTMLAnchorElement | null;
+        const meta = document.getElementById('meta-win');
+        if (btn) btn.href = exeAsset.browser_download_url;
+        if (meta) meta.textContent = `${exeAsset.name} · ${formatMb(exeAsset.size)}`;
+      }
+
+      const apkUrl =
+        apkAsset?.browser_download_url ??
+        `https://github.com/${REPO}/releases/download/v${ver}/KOMA-Android.apk`;
+      const apkBtn = document.getElementById('btn-download-apk') as HTMLAnchorElement | null;
+      const apkMeta = document.getElementById('meta-apk');
+      if (apkBtn) apkBtn.href = apkUrl;
+      if (apkMeta && apkAsset) apkMeta.textContent = `${apkAsset.name} · ${formatMb(apkAsset.size)}`;
+      await renderQr(apkUrl, ver);
     }
 
-    renderReleaseHistory(list);
+    renderReleaseHistory(candidates);
   } catch {
-    // Keep static fallback history
+    // Keep static fallback history & latest v1.1.1 QR target
   }
 }
 
