@@ -114,94 +114,101 @@ export function SourcesView() {
   };
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-3.5 sm:px-6">
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setActiveView('settings')}
-            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 cursor-pointer"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>{t.nav.back}</span>
-          </button>
-          <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">{t.sources.title}</h1>
-          <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-0.5 font-mono-tech text-[10px] text-zinc-300">
-            {counts.all}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t.sources.searchPlaceholder}
-              className="w-44 sm:w-52 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-9 pr-4 text-xs text-white placeholder-zinc-500 focus:border-white/25 focus:outline-none"
-            />
+    <div className="h-full w-full overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+      {/* Header scrolls naturally with the list */}
+      <div className="border-b border-white/[0.07] pb-3.5">
+        {/* Row 1: Back + Title + Count on left; 18+, All Sources, Refresh on right */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setActiveView('settings')}
+              className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>{t.nav.back}</span>
+            </button>
+            <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">
+              {t.sources.title}
+            </h1>
+            <span className="rounded-full border border-white/15 bg-white/[0.05] px-2.5 py-0.5 font-mono-tech text-[10px] text-zinc-300">
+              {counts.all}
+            </span>
           </div>
 
-          <button
-            onClick={() => void updateSettings({ showNsfw: !settings.showNsfw })}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
-              settings.showNsfw
-                ? 'accent-bg border-white/40'
-                : 'border-white/15 bg-white/[0.06] text-zinc-300 hover:border-white/30 hover:text-white'
-            }`}
-          >
-            18+
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => void updateSettings({ showNsfw: !settings.showNsfw })}
+              className={`rounded-full border px-2.5 py-1.5 text-xs font-medium transition cursor-pointer ${
+                settings.showNsfw
+                  ? 'accent-bg border-white/40'
+                  : 'border-white/15 bg-white/[0.06] text-zinc-300 hover:border-white/30 hover:text-white'
+              }`}
+            >
+              18+
+            </button>
 
-          <button
-            onClick={() => void toggleShowAllCf()}
-            className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
-              showAllCf
-                ? 'accent-bg border-white/40'
-                : 'border-white/15 bg-white/[0.06] text-zinc-300 hover:border-white/30 hover:text-white'
-            }`}
-          >
-            <Shield className="h-3.5 w-3.5" />
-            <span>{showAllCf ? t.sources.showingAll : t.sources.cfMode}</span>
-          </button>
+            <button
+              onClick={() => void toggleShowAllCf()}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
+                showAllCf
+                  ? 'accent-bg border-white/40'
+                  : 'border-white/15 bg-white/[0.06] text-zinc-300 hover:border-white/30 hover:text-white'
+              }`}
+            >
+              <Shield className="h-3.5 w-3.5" />
+              <span>{showAllCf ? t.sources.showingAll : t.sources.cfMode}</span>
+            </button>
 
-          <button
-            onClick={() => void verifyWorkingSources()}
-            disabled={verifyingSources}
-            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-4 py-1.5 text-xs font-medium text-white transition hover:border-white/30 hover:bg-white/10 disabled:opacity-50 cursor-pointer"
-          >
-            {verifyingSources ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5" />
-            )}
-            <span>{verifyingSources ? t.sources.scanning : t.sources.reverify}</span>
-          </button>
+            <button
+              onClick={() => void verifyWorkingSources()}
+              disabled={verifyingSources}
+              className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-medium text-white transition hover:border-white/30 hover:bg-white/10 disabled:opacity-50 cursor-pointer"
+            >
+              {verifyingSources ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              <span>{verifyingSources ? t.sources.scanning : t.sources.reverify}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Dedicated Search Bar */}
+        <div className="relative mt-3 w-full sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t.sources.searchPlaceholder}
+            className="w-full rounded-full border border-white/10 bg-white/[0.04] py-2 pl-9 pr-4 text-xs text-white placeholder-zinc-500 focus:border-white/25 focus:outline-none"
+          />
+        </div>
+
+        {/* Row 3: Language Tabs */}
+        <div className="no-scrollbar mt-3 flex items-center gap-2 overflow-x-auto pb-0.5">
+          {LANG_TABS.map((tab) => {
+            const active = langFilter === tab.id;
+            const count = counts[tab.id];
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setLangFilter(tab.id)}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
+                  active
+                    ? 'bg-white text-black'
+                    : 'border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white'
+                }`}
+              >
+                {tab.label} ({count})
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Language Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-white/[0.05] px-4 py-2.5 sm:px-6">
-        {LANG_TABS.map((tab) => {
-          const active = langFilter === tab.id;
-          const count = counts[tab.id];
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setLangFilter(tab.id)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition cursor-pointer ${
-                active
-                  ? 'bg-white text-black'
-                  : 'border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white'
-              }`}
-            >
-              {tab.label} ({count})
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="pt-4 pb-6">
         {filtered.length > 0 ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((src) => {
@@ -270,7 +277,7 @@ export function SourcesView() {
             })}
           </div>
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+          <div className="flex py-20 flex-col items-center justify-center gap-3 text-center">
             <p className="text-sm text-zinc-400">
               {verifyingSources ? 'Loading sources...' : 'No sources loaded yet.'}
             </p>

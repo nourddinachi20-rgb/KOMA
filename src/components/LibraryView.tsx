@@ -524,13 +524,22 @@ export function LibraryView() {
                 hist && hist.totalPages > 0
                   ? Math.round(((hist.pageIndex + 1) / hist.totalPages) * 100)
                   : undefined;
+              const histSub = !hist
+                ? undefined
+                : hist.chapterNumber > 0
+                  ? `Ch. ${hist.chapterNumber}`
+                  : hist.chapterTitle && hist.chapterTitle !== 'Last Read'
+                    ? hist.chapterTitle
+                    : hist.pageIndex > 0
+                      ? `p.${hist.pageIndex + 1}`
+                      : undefined;
               return (
                 <MangaCard
                   key={entry.key}
                   manga={entry.manga}
                   broken={brokenKeySet.has(entry.key)}
                   showSource={false}
-                  subtitle={hist ? `Ch. ${hist.chapterNumber || '?'}` : undefined}
+                  subtitle={histSub}
                   progressPercent={pct}
                   onQuickPlay={() => void handleQuickPlay(entry)}
                 />

@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.1.7';
+export const APP_VERSION = '1.1.8';
 
 export interface ChangelogSection {
   title: string;
@@ -6,10 +6,10 @@ export interface ChangelogSection {
   items: string[];
 }
 
-export const DEFAULT_WHATS_NEW_NOTES = `### Fixes
-- **Fixed Sources Showing (0) & Boot Race:** Attaches engine status listeners before initial hydration and always re-checks/restarts the engine when Refresh is clicked so all verified sources load immediately on launch and after updates.
-- **Full-Screen Sources via Settings:** Clicking **Sources** inside Settings now opens the full-screen Sources view with a Back button back to Settings and a 18+ filter toggle.
-- **Single-Row Library Header:** Groups Library, Updates, and Offline into a compact segmented pill aligned on one line alongside the Filter, Stats, and More buttons.`;
+export const DEFAULT_WHATS_NEW_NOTES = `### Improvements
+- **Animated Bottom Navbar & Larger Icons:** Balanced bottom navbar proportions with larger icons and a smooth sliding accent light bar & glow pill when switching tabs.
+- **Explore & Sources Rework:** Organized Explore (source + search + Change source on top; Title-Cased sort labels + website mirror + refresh below) and Sources into clean scrolling headers with full Android status-bar safe-area support for the mobile Sources drawer.
+- **Clean Progress Labels:** Omits unknown chapter numbers and page totals instead of rendering \`Ch. ?\` or \`/?\`.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

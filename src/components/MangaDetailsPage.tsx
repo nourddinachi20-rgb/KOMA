@@ -479,7 +479,9 @@ export function MangaDetailsPage() {
                   <Play className="h-4 w-4 fill-current" />
                   <span>
                     {historyItem && !readSet.has(historyItem.chapterId)
-                      ? `Resume Ch. ${historyItem.chapterNumber || ''} (p.${historyItem.pageIndex + 1})`
+                      ? historyItem.chapterNumber > 0
+                        ? `Resume Ch. ${historyItem.chapterNumber} (p.${historyItem.pageIndex + 1})`
+                        : `Resume (p.${historyItem.pageIndex + 1})`
                       : nextUnreadIdx > 0
                         ? `Continue Ch. ${ascendingChapters[nextUnreadIdx]?.number || nextUnreadIdx + 1}`
                         : 'Start Reading'}

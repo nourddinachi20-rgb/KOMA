@@ -665,7 +665,8 @@ export function SettingsView() {
                             <span className="truncate text-zinc-200">{item.title}</span>
                           </div>
                           <span className="ml-2 shrink-0 text-[11px] text-zinc-400">
-                            {item.status} · Ch. {item.progress}/{item.totalChapters ?? '?'}
+                            {item.status} · Ch. {item.progress}
+                            {item.totalChapters ? `/${item.totalChapters}` : ''}
                           </span>
                         </div>
                       ))}

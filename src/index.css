@@ -272,9 +272,17 @@
 }
 
 .pt-safe {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: max(env(safe-area-inset-top, 0px), var(--koma-safe-top, 0px));
 }
 
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--koma-safe-bottom, 0px));
+}
+
+.pt-safe-drawer {
+  padding-top: calc(max(env(safe-area-inset-top, 0px), var(--koma-safe-top, 0px)) + 14px);
+}
+
+.pb-safe-drawer {
+  padding-bottom: calc(max(env(safe-area-inset-bottom, 0px), var(--koma-safe-bottom, 0px)) + 14px);
 }

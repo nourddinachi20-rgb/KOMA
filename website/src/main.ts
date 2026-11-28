@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 const REPO = 'nourddinachi20-rgb/KOMA';
-const DEFAULT_VERSION = '1.1.7';
+const DEFAULT_VERSION = '1.1.8';
 const DEFAULT_APK_URL = `https://github.com/${REPO}/releases/download/v${DEFAULT_VERSION}/KOMA-Android.apk`;
 
 interface GitHubReleaseAsset {
@@ -21,6 +21,15 @@ interface GitHubRelease {
 }
 
 const FALLBACK_RELEASES: GitHubRelease[] = [
+  {
+    tag_name: 'v1.1.8',
+    name: 'KOMA v1.1.8',
+    published_at: '2026-11-28T20:25:00Z',
+    body: `### Improvements
+- **Animated Bottom Navbar & Larger Icons:** Balanced bottom navbar sizing with crisp larger icons and a smooth sliding accent light indicator across tabs.
+- **Explore & Sources Layout + Safe Area:** Organized 2-row Explore header, normalized Title-Case sort labels, non-sticky scrolling headers for Explore & Sources, and proper Android status-bar safe-area padding for the mobile Sources drawer.
+- **Clean Progress Labels:** Removed \`Ch. ?\` and \`/?\` placeholders when chapter numbers or page totals are unavailable.`,
+  },
   {
     tag_name: 'v1.1.7',
     name: 'KOMA v1.1.7',

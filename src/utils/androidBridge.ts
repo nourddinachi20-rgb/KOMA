@@ -9,8 +9,8 @@ interface KomaNativePluginInterface {
   pickBackupFile(): Promise<{ json?: string; base64?: string; fileName?: string }>;
   saveBackupFile(options: { json: string }): Promise<{ ok: boolean }>;
   solveCloudflare(options: { url: string }): Promise<{ ok: boolean; injected: number; error?: string }>;
-  getEngineStatus(): Promise<{ ready: boolean; port: number | null; url: string | null; sourcesCount: number; error: string | null }>;
-  restartEngine(): Promise<{ ready: boolean; port: number | null; url: string | null; sourcesCount: number; error: string | null }>;
+  getEngineStatus(): Promise<{ ready: boolean; port: number | null; url: string | null; sourcesCount: number; safeTop?: number; safeBottom?: number; error: string | null }>;
+  restartEngine(): Promise<{ ready: boolean; port: number | null; url: string | null; sourcesCount: number; safeTop?: number; safeBottom?: number; error: string | null }>;
   addListener(
     eventName: 'engineStatus' | 'downloadProgress' | 'updateProgress',
     listenerFunc: (data: any) => void,
@@ -41,6 +41,12 @@ export function installAndroidBridgeIfNeeded(): void {
   const updateListeners = new Set<(data: any) => void>();
 
   void KomaNative.addListener('engineStatus', (status) => {
+    if (typeof status?.safeTop === 'number' && status.safeTop > 0) {
+      document.documentElement.style.setProperty('--koma-safe-top', `${status.safeTop}px`);
+    }
+    if (typeof status?.safeBottom === 'number' && status.safeBottom > 0) {
+      document.documentElement.style.setProperty('--koma-safe-bottom', `${status.safeBottom}px`);
+    }
     for (const cb of engineListeners) cb(status);
   });
 
@@ -68,7 +74,16 @@ export function installAndroidBridgeIfNeeded(): void {
     },
     toggleFullscreen: async () => false,
     isFullscreen: async () => false,
-    getEngineStatus: () => KomaNative.getEngineStatus(),
+    getEngineStatus: async () => {
+      const st = await KomaNative.getEngineStatus();
+      if (typeof st.safeTop === 'number' && st.safeTop > 0) {
+        document.documentElement.style.setProperty('--koma-safe-top', `${st.safeTop}px`);
+      }
+      if (typeof st.safeBottom === 'number' && st.safeBottom > 0) {
+        document.documentElement.style.setProperty('--koma-safe-bottom', `${st.safeBottom}px`);
+      }
+      return st;
+    },
     restartEngine: () => KomaNative.restartEngine(),
     getEngineLogs: () => rpc<string[]>('getEngineLogs'),
     solveCloudflare: (url: string) => KomaNative.solveCloudflare({ url }),

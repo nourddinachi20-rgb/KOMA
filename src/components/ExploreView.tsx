@@ -1,11 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Filter, Globe, Loader2, RefreshCw, Search, SlidersHorizontal } from 'lucide-react';
+import { Filter, Globe, Loader2, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { Manga, MangaTag, SortOrder } from '../types';
 import { fetchMangaList, fetchSourceFilters, updateSourceDomain } from '../utils/api';
 import { useT } from '../utils/i18n';
 import { CustomSelect } from './CustomSelect';
 import { MangaCard } from './MangaCard';
+
+function formatSortLabel(order: string): string {
+  return order
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((word) =>
+      word === 'asc' || word === 'desc'
+        ? `(${word.charAt(0).toUpperCase() + word.slice(1)})`
+        : word.charAt(0).toUpperCase() + word.slice(1),
+    )
+    .join(' ');
+}
 
 export function ExploreView() {
   const t = useT();
@@ -195,6 +208,7 @@ export function ExploreView() {
   }, [hasMore, loading, loadingMore, items.length, loadList]);
 
   const currentSourceInfo = sources.find((s) => s.name === exploreSource);
+  const currentDomain = filterMeta?.domain ?? currentSourceInfo?.domain ?? '';
 
   return (
     <div className="relative flex h-full w-full overflow-hidden">
@@ -202,16 +216,30 @@ export function ExploreView() {
       {mobileRailOpen && (
         <div
           onClick={() => setMobileRailOpen(false)}
-          className="fixed inset-0 z-30 bg-black/70 md:hidden"
+          className="fixed inset-0 z-40 bg-black/75 md:hidden"
         />
       )}
 
-      {/* Adaptive Source Rail: Drawer on Phone, Docked Rail on Tablet/Desktop */}
+      {/* Adaptive Source Rail: Safe-area Drawer on Phone, Docked Rail on Tablet/Desktop */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 shrink-0 flex-col border-r border-white/[0.08] bg-[#060609] p-3 transition-transform duration-200 md:static md:w-64 md:translate-x-0 md:bg-black/50 ${
+        className={`pt-safe-drawer pb-safe-drawer fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-[300px] shrink-0 flex-col border-r border-white/[0.08] bg-[#060609] px-3.5 transition-transform duration-200 md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0 md:bg-black/50 md:p-3 ${
           mobileRailOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
+        <div className="mb-3 flex items-center justify-between md:hidden">
+          <span className="text-sm font-bold tracking-tight text-white">
+            Sources ({nsfwFilteredCount})
+          </span>
+          <button
+            type="button"
+            onClick={() => setMobileRailOpen(false)}
+            aria-label="Close sources"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-300 hover:text-white cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
         <div className="relative mb-2">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
           <input
@@ -231,17 +259,17 @@ export function ExploreView() {
               { id: 'ar', label: 'AR' },
               { id: 'multi', label: 'Multi' },
             ] as const
-          ).map((t) => (
+          ).map((tab) => (
             <button
-              key={t.id}
-              onClick={() => setLangFilter(t.id)}
+              key={tab.id}
+              onClick={() => setLangFilter(tab.id)}
               className={`flex-1 rounded-lg py-1 font-mono-tech text-[10px] transition cursor-pointer ${
-                langFilter === t.id
+                langFilter === tab.id
                   ? 'bg-white text-black font-semibold'
                   : 'bg-white/[0.04] text-zinc-400 hover:text-white'
               }`}
             >
-              {t.label}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -282,103 +310,111 @@ export function ExploreView() {
         </div>
       </aside>
 
-      {/* Main Catalog Area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-3.5 sm:px-6 sm:py-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMobileRailOpen(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-medium text-white md:hidden cursor-pointer"
-            >
-              <Globe className="h-3.5 w-3.5 accent-fg" />
-              <span>{t.explore.sources}</span>
-            </button>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">
-                {currentSourceInfo?.title ?? exploreSource}
-              </h1>
-              <p className="font-mono-tech text-[11px] text-zinc-500">
-                {filterMeta?.domain ?? currentSourceInfo?.domain ?? 'Ready'} ·{' '}
-                {currentSourceInfo?.contentType ?? 'MANGA'}
-              </p>
-            </div>
-          </div>
+      {/* Main Catalog Area: single scroll container so header scrolls away naturally */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="border-b border-white/[0.07] px-4 py-3 sm:px-6 sm:py-4">
+          {/* Row 1: Source on left, Search bar in middle, Change source button on right */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <h1 className="min-w-0 max-w-[115px] shrink-0 truncate text-sm font-bold tracking-tight text-white sm:max-w-[200px] sm:text-lg">
+              {currentSourceInfo?.title ?? exploreSource}
+            </h1>
 
-          <div className="flex flex-wrap items-center gap-2">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 void loadList(0, false, true);
               }}
-              className="relative"
+              className="relative min-w-0 flex-1"
             >
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t.explore.searchPlaceholder}
-                className="w-56 rounded-full border border-white/10 bg-white/[0.05] py-1.5 pl-9 pr-4 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none"
+                className="w-full rounded-full border border-white/10 bg-white/[0.05] py-1.5 pl-8 pr-3 text-xs text-white placeholder-zinc-500 focus:border-white/30 focus:outline-none"
               />
             </form>
 
-            {filterMeta && filterMeta.sortOrders.length > 0 && (
-              <CustomSelect
-                value={sortOrder}
-                onChange={(v) => setSortOrder(v as SortOrder)}
-                options={filterMeta.sortOrders.map((o) => ({
-                  value: o,
-                  label: o.replace(/_/g, ' '),
-                }))}
-              />
-            )}
+            <button
+              type="button"
+              onClick={() => setMobileRailOpen(true)}
+              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-medium text-white transition hover:border-white/30 md:hidden cursor-pointer"
+            >
+              <Globe className="h-3.5 w-3.5 accent-fg" />
+              <span>Change source</span>
+            </button>
+          </div>
 
-            {filterMeta && filterMeta.domains.length > 1 && (
-              <CustomSelect
-                value={filterMeta.domain}
-                prefixIcon={<Globe className="h-3.5 w-3.5 text-zinc-400" />}
-                onChange={async (dom) => {
-                  if (!engineStatus.url) return;
-                  const newDom = await updateSourceDomain(
-                    engineStatus.url,
-                    exploreSource,
-                    dom,
-                  );
-                  setFilterCache(exploreSource, { ...filterMeta, domain: newDom });
-                  void loadList(0, false, true);
-                }}
-                options={filterMeta.domains.map((d) => ({
-                  value: d,
-                  label: d,
-                }))}
-              />
-            )}
+          {/* Row 2: Sorting + Website choice + Tags on left, Refresh on right */}
+          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {filterMeta && filterMeta.sortOrders.length > 0 && (
+                <CustomSelect
+                  value={sortOrder}
+                  onChange={(v) => setSortOrder(v as SortOrder)}
+                  options={filterMeta.sortOrders.map((o) => ({
+                    value: o,
+                    label: formatSortLabel(o),
+                  }))}
+                />
+              )}
 
-            {filterMeta && filterMeta.availableTags.length > 0 && (
-              <button
-                onClick={() => setShowFilters((s) => !s)}
-                className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs transition cursor-pointer ${
-                  showFilters || selectedTags.length > 0
-                    ? 'border-white/30 bg-white text-black font-medium'
-                    : 'border-white/10 bg-white/[0.05] text-zinc-300 hover:border-white/25'
-                }`}
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                <span>Tags {selectedTags.length > 0 ? `(${selectedTags.length})` : ''}</span>
-              </button>
-            )}
+              {filterMeta && filterMeta.domains.length > 1 ? (
+                <CustomSelect
+                  value={filterMeta.domain}
+                  prefixIcon={<Globe className="h-3.5 w-3.5 text-zinc-400" />}
+                  onChange={async (dom) => {
+                    if (!engineStatus.url) return;
+                    const newDom = await updateSourceDomain(
+                      engineStatus.url,
+                      exploreSource,
+                      dom,
+                    );
+                    setFilterCache(exploreSource, { ...filterMeta, domain: newDom });
+                    void loadList(0, false, true);
+                  }}
+                  options={filterMeta.domains.map((d) => ({
+                    value: d,
+                    label: d,
+                  }))}
+                />
+              ) : currentDomain ? (
+                <span className="inline-flex max-w-[165px] items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] text-zinc-400">
+                  <Globe className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                  <span className="truncate">{currentDomain}</span>
+                </span>
+              ) : null}
+
+              {filterMeta && filterMeta.availableTags.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowFilters((s) => !s)}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition cursor-pointer ${
+                    showFilters || selectedTags.length > 0
+                      ? 'border-white/30 bg-white text-black font-medium'
+                      : 'border-white/10 bg-white/[0.05] text-zinc-300 hover:border-white/25'
+                  }`}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  <span>Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}</span>
+                </button>
+              )}
+            </div>
 
             <button
+              type="button"
               onClick={() => loadList(0, false, true)}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-300 transition hover:border-white/25 hover:text-white cursor-pointer"
+              className="ml-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:text-white cursor-pointer"
               title="Refresh"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
             </button>
           </div>
         </div>
 
         {showFilters && filterMeta && (
-          <div className="border-b border-white/[0.07] bg-white/[0.02] px-6 py-3">
+          <div className="border-b border-white/[0.07] bg-white/[0.02] px-4 py-3 sm:px-6">
             <div className="mb-2 flex items-center justify-between text-xs text-zinc-400">
               <span className="flex items-center gap-1.5">
                 <Filter className="h-3.5 w-3.5" /> Filter by Genre / Tag
@@ -421,15 +457,15 @@ export function ExploreView() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="p-4 sm:p-6">
           {error && (
             <div className="mb-6 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-4 text-xs text-rose-200">
-              {error} — Try switching mirror domain above or picking another source from the left rail.
+              {error} — Try switching mirror domain above or picking another source.
             </div>
           )}
 
           {loading && items.length === 0 ? (
-            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
               {Array.from({ length: 18 }).map((_, i) => (
                 <div
                   key={i}
@@ -439,7 +475,7 @@ export function ExploreView() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                 {items.map((item) => (
                   <MangaCard key={`${exploreSource}-${item.id}`} manga={item} />
                 ))}

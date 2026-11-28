@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Compass, Home, Library, Search, Settings, Minus, Square, X } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { NavView } from '../types';
@@ -58,6 +59,26 @@ export function MobileBottomNav() {
     useAppStore();
   const t = useT();
 
+  const activeCol = commandOpen
+    ? -1
+    : activeView === 'home'
+      ? 0
+      : activeView === 'library'
+        ? 1
+        : activeView === 'explore'
+          ? 3
+          : activeView === 'settings' || activeView === 'sources'
+            ? 4
+            : -1;
+
+  const [sliderCol, setSliderCol] = useState(activeCol >= 0 ? activeCol : 0);
+
+  useEffect(() => {
+    if (activeCol >= 0) {
+      setSliderCol(activeCol);
+    }
+  }, [activeCol]);
+
   const go = (view: NavView) => {
     closeManga();
     setActiveView(view);
@@ -71,30 +92,41 @@ export function MobileBottomNav() {
         key={view}
         type="button"
         onClick={() => go(view)}
-        className={`relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1 text-[10px] font-medium transition cursor-pointer ${
+        className={`relative z-10 flex h-12 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium transition-colors duration-200 cursor-pointer ${
           active ? 'text-white' : 'text-zinc-500 hover:text-zinc-200'
         }`}
       >
-        <div
-          className={`relative flex h-7 w-11 items-center justify-center rounded-full transition ${
-            active ? 'accent-bg' : ''
-          }`}
-        >
-          <Icon className="h-4 w-4" />
+        <div className="relative flex h-7 w-12 items-center justify-center">
+          <Icon className="h-5 w-5 transition-transform duration-200" strokeWidth={active ? 2.2 : 1.85} />
           {badge > 0 && (
-            <span className="accent-bg absolute -right-1 -top-1 rounded-full px-1 font-mono-tech text-[8px] font-bold">
+            <span className="accent-bg absolute right-1 -top-0.5 rounded-full px-1 font-mono-tech text-[8px] font-bold leading-tight">
               {badge > 99 ? '99+' : badge}
             </span>
           )}
         </div>
-        <span className="truncate">{label}</span>
+        <span className="max-w-full truncate leading-tight">{label}</span>
       </button>
     );
   };
 
   return (
-    <div className="pb-safe relative z-40 shrink-0 border-t border-white/[0.08] bg-black/95 px-2 pt-2 pb-1.5 select-none md:flex md:justify-center">
-      <nav className="grid w-full grid-cols-5 items-end gap-1 md:max-w-lg">
+    <div className="pb-safe relative z-40 shrink-0 border-t border-white/[0.08] bg-black/95 px-2 pt-1.5 pb-1 select-none md:flex md:justify-center">
+      <nav className="relative grid w-full grid-cols-5 items-center md:max-w-lg">
+        {/* Smooth sliding active light & glow pill */}
+        <div
+          aria-hidden="true"
+          style={{ transform: `translate3d(${sliderCol * 100}%, 0, 0)` }}
+          className={`pointer-events-none absolute inset-y-0 left-0 z-0 flex w-1/5 flex-col items-center justify-center gap-0.5 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            activeCol >= 0 ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          <span className="accent-bg absolute -top-1.5 h-[2.5px] w-7 rounded-full shadow-[0_0_12px_2px_rgba(var(--koma-accent-rgb),0.7)]" />
+          <div className="h-7 w-12 rounded-2xl border border-[rgba(var(--koma-accent-rgb),0.28)] bg-[rgba(var(--koma-accent-rgb),0.15)] shadow-[0_0_18px_rgba(var(--koma-accent-rgb),0.18)]" />
+          <span className="h-[13px] text-[10px] leading-tight opacity-0" aria-hidden="true">
+            ·
+          </span>
+        </div>
+
         {navBtn('home', t.nav.home, Home)}
         {navBtn('library', t.nav.library, Library, updates.length)}
 
@@ -102,12 +134,12 @@ export function MobileBottomNav() {
           type="button"
           onClick={() => setCommandOpen(true)}
           aria-label={t.nav.search}
-          className="group flex flex-col items-center justify-center gap-0.5 pt-1 pb-0.5 cursor-pointer"
+          className="group relative z-10 flex h-12 flex-col items-center justify-center gap-0.5 px-1 cursor-pointer"
         >
-          <div className="accent-bg flex h-9 w-12 items-center justify-center rounded-2xl border border-white/15 shadow-[0_6px_22px_rgba(var(--koma-accent-rgb),0.28)] transition-transform duration-150 group-hover:scale-105 group-active:scale-95">
-            <Search className="h-[18px] w-[18px]" strokeWidth={2.3} />
+          <div className="accent-bg flex h-8 w-12 items-center justify-center rounded-2xl border border-white/15 shadow-[0_4px_18px_rgba(var(--koma-accent-rgb),0.28)] transition-transform duration-150 group-hover:scale-105 group-active:scale-95">
+            <Search className="h-5 w-5" strokeWidth={2.3} />
           </div>
-          <span className="text-[10px] font-semibold text-white">{t.nav.search}</span>
+          <span className="text-[10px] font-semibold leading-tight text-white">{t.nav.search}</span>
         </button>
 
         {navBtn('explore', t.nav.explore, Compass)}

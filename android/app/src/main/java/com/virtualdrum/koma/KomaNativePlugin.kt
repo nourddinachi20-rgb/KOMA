@@ -92,6 +92,8 @@ class KomaNativePlugin : Plugin() {
             put("port", if (ready) port else JSONObject.NULL)
             put("url", if (ready) "http://127.0.0.1:$port" else JSONObject.NULL)
             put("sourcesCount", AndroidKomaEngine.sourcesCount)
+            put("safeTop", MainActivity.safeTopDp)
+            put("safeBottom", MainActivity.safeBottomDp)
             put("error", JSONObject.NULL)
         }
     }

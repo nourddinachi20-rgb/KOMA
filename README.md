@@ -9,7 +9,7 @@
       <img src="https://img.shields.io/badge/Website-Download_KOMA-FFFFFF?style=for-the-badge&logoColor=000000" alt="Download Website" />
     </a>
     <a href="https://github.com/nourddinachi20-rgb/KOMA/releases/latest">
-      <img src="https://img.shields.io/badge/Release-v1.1.7-111111?style=for-the-badge&labelColor=000000" alt="Release v1.1.7" />
+      <img src="https://img.shields.io/badge/Release-v1.1.8-111111?style=for-the-badge&labelColor=000000" alt="Release v1.1.8" />
     </a>
     <img src="https://img.shields.io/badge/Windows-Portable_EXE-000000?style=for-the-badge&logo=windows&logoColor=FFFFFF" alt="Windows" />
     <img src="https://img.shields.io/badge/Android-Phone_%26_Tablet_APK-000000?style=for-the-badge&logo=android&logoColor=FFFFFF" alt="Android" />

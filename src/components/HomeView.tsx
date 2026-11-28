@@ -590,12 +590,21 @@ export function HomeView() {
               {history.slice(0, 16).map((h) => {
                 const pct =
                   h.totalPages > 0 ? Math.round(((h.pageIndex + 1) / h.totalPages) * 100) : 10;
+                const chPart =
+                  h.chapterNumber > 0
+                    ? `Ch. ${h.chapterNumber}`
+                    : h.chapterTitle && h.chapterTitle !== 'Last Read'
+                      ? h.chapterTitle
+                      : null;
+                const pagePart =
+                  h.totalPages > 0 ? `p.${h.pageIndex + 1}/${h.totalPages}` : `p.${h.pageIndex + 1}`;
+                const subtitle = [chPart, pagePart].filter(Boolean).join(' · ');
                 return (
                   <MangaCard
                     key={h.key}
                     manga={h.manga}
                     compact
-                    subtitle={`Ch. ${h.chapterNumber || '?'} · p.${h.pageIndex + 1}/${h.totalPages || '?'}`}
+                    subtitle={subtitle}
                     progressPercent={pct}
                   />
                 );
