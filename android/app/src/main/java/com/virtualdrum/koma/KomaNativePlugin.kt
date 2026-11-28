@@ -18,6 +18,8 @@ import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.noctis.engine.AndroidKomaEngine
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -35,6 +37,7 @@ import java.util.zip.ZipOutputStream
 @CapacitorPlugin(name = "KomaNative")
 class KomaNativePlugin : Plugin() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val storageMutex = Mutex()
     private val http = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(40, TimeUnit.SECONDS)
@@ -332,6 +335,21 @@ class KomaNativePlugin : Plugin() {
     }
 
     private suspend fun dispatchRpc(method: String, args: JSONObject): String {
+        val needsLock = method in setOf(
+            "saveCategories", "upsertLibrary", "removeLibrary",
+            "clearUpdates", "upsertHistory", "removeHistory",
+            "saveSettings", "saveHomeCache", "deleteDownload",
+            "importBackupJson", "recordStats", "setAniListToken",
+            "disconnectAniList"
+        )
+        return if (needsLock) {
+            storageMutex.withLock { dispatchRpcUnlocked(method, args) }
+        } else {
+            dispatchRpcUnlocked(method, args)
+        }
+    }
+
+    private suspend fun dispatchRpcUnlocked(method: String, args: JSONObject): String {
         return when (method) {
             "getEngineLogs" -> JSONArray(logs).toString()
             "getCategories" -> ensureDefaultCategories()
@@ -1049,7 +1067,13 @@ class KomaNativePlugin : Plugin() {
     }
 
     private fun writeFileText(name: String, content: String) {
-        File(dataDir, name).writeText(content)
+        val target = File(dataDir, name)
+        val tmp = File(dataDir, "$name.tmp")
+        tmp.writeText(content)
+        if (!tmp.renameTo(target)) {
+            target.writeText(content)
+            tmp.delete()
+        }
     }
 
     private fun getDisplayName(uri: Uri): String? {
@@ -1114,6 +1138,7 @@ class KomaNativePlugin : Plugin() {
               "autoCheckUpdates":true,
               "githubRepo":"nourddinachi20-rgb/KOMA",
               "hasCompletedTutorial":false,
+              "hasSeenWelcome":false,
               "lastSeenVersion":"",
               "pendingWhatsNewNotes":"",
               "syncServerUrl":"",

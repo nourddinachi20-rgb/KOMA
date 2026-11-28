@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.0.5';
+export const APP_VERSION = '1.0.6';
 
 export interface ChangelogSection {
   title: string;
@@ -7,11 +7,13 @@ export interface ChangelogSection {
 }
 
 export const DEFAULT_WHATS_NEW_NOTES = `### New Features
-- **Instant Cross-Device Account Sync:** Create an account or sign in from any phone, tablet, or Windows PC using only a Username and Password — zero server setup required and zero-knowledge encrypted on your device.
-- **Persistent Login & Auto-Sync:** Stay signed in across app launches. KOMA now pulls your latest library and reading progress automatically on startup and syncs changes silently in the background.
+- **Welcome Account Screen:** On first launch, sign in, create an encrypted account, or continue as a guest cleanly before entering KOMA.
+- **In-App Dropdowns:** Replaced all native Android system select popups with unified dark/light KOMA menus with centered text and arrows.
 
-### Improvements
-- **Zero-Clutter Sync UI:** Removed the required server URL field from Settings while keeping an optional custom server toggle for self-hosters.`;
+### Fixes
+- **Crash-Proof Batch Migration:** Added storage mutex locks, atomic file writes, and working-source filtering with alt-title fallback so large migrations never crash or leave titles marked Broken.
+- **Reliable Cover Loading:** Upgraded proxy retries with origin referer fallbacks and direct cover fallbacks so covers never stall empty or show broken image icons.
+- **Quality of Life:** Opening Search, switching views, or tapping outside now auto-closes any open dropdown or popup menu.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;

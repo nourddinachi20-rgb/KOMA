@@ -9,6 +9,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { SplashScreen } from './components/SplashScreen';
 import { ToastContainer } from './components/ToastContainer';
 import { TutorialOverlay } from './components/TutorialOverlay';
+import { WelcomeAuthModal } from './components/WelcomeAuthModal';
 import { WhatsNewModal } from './components/WhatsNewModal';
 
 const UpdatesView = lazy(() =>
@@ -154,6 +155,7 @@ export function App() {
       <ToastContainer />
       <TutorialOverlay />
       <WhatsNewModal />
+      <WelcomeAuthModal />
       <SplashScreen />
     </div>
   );

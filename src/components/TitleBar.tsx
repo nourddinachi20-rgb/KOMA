@@ -17,6 +17,7 @@ import {
 import { useAppStore } from '../store/useAppStore';
 import type { NavView } from '../types';
 import { useT } from '../utils/i18n';
+import { closeAllPopovers, useClosePopoversListener } from './CustomSelect';
 import { KomaLogo } from './KomaLogo';
 
 const isDesktopShell =
@@ -103,7 +104,7 @@ export function TitleBar() {
               <span className="relative z-10">{item.label}</span>
               {badge > 0 && (
                 <span
-                  className={`relative z-10 rounded-full px-1.5 py-0.2 font-mono-tech text-[9px] font-bold ${
+                  className={`relative z-10 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 font-mono-tech text-[9px] font-bold leading-none ${
                     active ? 'bg-black/20 text-current' : 'accent-bg'
                   }`}
                 >
@@ -175,6 +176,8 @@ export function MobileBottomNav() {
   const t = useT();
   const [moreOpen, setMoreOpen] = useState(false);
 
+  useClosePopoversListener('mobile-nav-more', () => setMoreOpen(false));
+
   const go = (view: NavView) => {
     closeManga();
     setActiveView(view);
@@ -193,7 +196,12 @@ export function MobileBottomNav() {
   return (
     <div className="md:hidden pb-safe relative z-40 shrink-0 border-t border-white/[0.08] bg-black/95 px-2 pt-1.5 pb-1.5 select-none">
       {moreOpen && (
-        <div className="absolute bottom-full right-3 mb-2 w-48 overflow-hidden rounded-2xl border border-white/15 bg-[#0C0C10] p-1.5 shadow-2xl">
+        <>
+          <div
+            className="fixed inset-0 z-30"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div className="absolute bottom-full right-3 z-40 mb-2 w-48 overflow-hidden rounded-2xl border border-white/15 bg-[#0C0C10] p-1.5 shadow-2xl">
           {[
             { id: 'downloads' as NavView, label: t.nav.offline, icon: Download },
             { id: 'sources' as NavView, label: t.nav.sources, icon: Layers },
@@ -215,6 +223,7 @@ export function MobileBottomNav() {
             );
           })}
         </div>
+        </>
       )}
 
       <nav className="grid grid-cols-5 items-center gap-1">
@@ -248,7 +257,10 @@ export function MobileBottomNav() {
         })}
 
         <button
-          onClick={() => setMoreOpen((o) => !o)}
+          onClick={() => {
+            if (!moreOpen) closeAllPopovers('mobile-nav-more');
+            setMoreOpen((o) => !o);
+          }}
           className={`flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[10px] font-medium transition cursor-pointer ${
             inMore || moreOpen ? 'text-white' : 'text-zinc-500'
           }`}

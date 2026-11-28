@@ -56,7 +56,7 @@ object AndroidKomaEngine {
 
     private fun semaphoreForHost(url: String): Semaphore {
         val host = runCatching { java.net.URI(url).host?.lowercase() }.getOrNull() ?: "default"
-        return imageHostSemaphores.computeIfAbsent(host) { Semaphore(5) }
+        return imageHostSemaphores.computeIfAbsent(host) { Semaphore(8) }
     }
 
     private suspend fun fetchImageBytesWithRetry(
@@ -70,20 +70,28 @@ object AndroidKomaEngine {
             var attempt = 0
             while (attempt < 3) {
                 val result = runCatching {
-                    val resp = if (CustomSourceRegistry.isCustom(srcParam)) {
-                        val req = okhttp3.Request.Builder()
+                    val resp = if (attempt == 0 && !CustomSourceRegistry.isCustom(srcParam)) {
+                        NoctisMangaLoaderContext.fetchRaw(targetUrl, source)
+                    } else {
+                        val reqBuilder = okhttp3.Request.Builder()
                             .get()
                             .url(targetUrl)
                             .header("User-Agent", org.koitharu.kotatsu.parsers.network.UserAgents.CHROME_DESKTOP)
-                            .header("Referer", "https://mangaball.com/")
-                            .build()
-                        NoctisMangaLoaderContext.httpClient.newCall(req).await()
-                    } else {
-                        NoctisMangaLoaderContext.fetchRaw(targetUrl, source)
+                        if (CustomSourceRegistry.isCustom(srcParam)) {
+                            reqBuilder.header("Referer", "https://mangaball.com/")
+                        } else if (attempt == 1) {
+                            runCatching { java.net.URI(targetUrl) }.getOrNull()?.let { uri ->
+                                if (uri.scheme != null && uri.host != null) {
+                                    reqBuilder.header("Referer", "${uri.scheme}://${uri.host}/")
+                                }
+                            }
+                        }
+                        NoctisMangaLoaderContext.httpClient.newCall(reqBuilder.build()).await()
                     }
                     resp.use { r ->
-                        if (r.isSuccessful) {
-                            Triple(r.code, r.header("Content-Type") ?: "image/jpeg", r.body?.bytes() ?: ByteArray(0))
+                        val bytes = r.body?.bytes() ?: ByteArray(0)
+                        if (r.isSuccessful && bytes.isNotEmpty()) {
+                            Triple(r.code, r.header("Content-Type") ?: "image/jpeg", bytes)
                         } else {
                             lastCode = r.code
                             null
@@ -92,9 +100,8 @@ object AndroidKomaEngine {
                 }.getOrNull()
 
                 if (result != null) return@withPermit result
-                if (lastCode !in setOf(429, 502, 503, 504) && attempt > 0) break
                 attempt++
-                if (attempt < 3) delay(550L * attempt)
+                if (attempt < 3) delay(450L * attempt)
             }
             Triple(lastCode, "text/plain", ByteArray(0))
         }

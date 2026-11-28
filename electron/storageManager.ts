@@ -88,6 +88,7 @@ export interface AppSettings {
   autoCheckUpdates: boolean;
   githubRepo: string;
   hasCompletedTutorial: boolean;
+  hasSeenWelcome?: boolean;
   lastSeenVersion: string;
   pendingWhatsNewNotes: string;
   syncServerUrl?: string;
@@ -136,6 +137,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoCheckUpdates: true,
   githubRepo: 'nourddinachi20-rgb/KOMA',
   hasCompletedTutorial: false,
+  hasSeenWelcome: false,
   lastSeenVersion: '',
   pendingWhatsNewNotes: '',
   syncServerUrl: '',
@@ -179,7 +181,9 @@ class StorageManager {
 
   private writeJson<T>(fileName: string, data: T): void {
     const filePath = path.join(this.baseDir, fileName);
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    const tmpPath = `${filePath}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf8');
+    fs.renameSync(tmpPath, filePath);
   }
 
   getCategories(): Category[] {

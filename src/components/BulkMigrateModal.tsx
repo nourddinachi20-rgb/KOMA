@@ -11,6 +11,7 @@ import {
 import { useAppStore } from '../store/useAppStore';
 import type { LibraryEntry, Manga } from '../types';
 import { fetchMangaDetails, fetchMangaList } from '../utils/api';
+import { CustomSelect } from './CustomSelect';
 import { MigrateModal } from './MigrateModal';
 
 interface BulkMigrateModalProps {
@@ -53,37 +54,94 @@ function pickBestCandidate(entry: LibraryEntry, candidates: Manga[]): Manga | nu
   return candidates[0];
 }
 
+function buildSearchQueries(entry: LibraryEntry): string[] {
+  const cleaned = entry.manga.title
+    .replace(/\[[^\]]*\]|\([^)]*\)/g, ' ')
+    .replace(/\s*[:\-–—]\s*(official|colored|digital).*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const rawList = [entry.manga.title.trim(), cleaned, ...(entry.manga.altTitles ?? []).map((s) => s.trim())];
+  const unique: string[] = [];
+  for (const q of rawList) {
+    if (q && !unique.some((u) => u.toLowerCase() === q.toLowerCase())) {
+      unique.push(q);
+    }
+    if (unique.length >= 3) break;
+  }
+  return unique;
+}
+
 export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalProps) {
-  const { engineStatus, sources, settings, migrateLibraryManga, notify } = useAppStore();
+  const { engineStatus, sources, settings, migrateLibraryBatch, notify } = useAppStore();
 
   const [targetMode, setTargetMode] = useState<string>('AUTO');
+  const [fallbackToAuto, setFallbackToAuto] = useState<boolean>(true);
   const [running, setRunning] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
   const [rowStatus, setRowStatus] = useState<Record<string, RowProgress>>({});
   const [manualEntry, setManualEntry] = useState<LibraryEntry | null>(null);
   const stopRef = useRef(false);
+  const pendingCommitRef = useRef<Array<{ oldKey: string; newManga: Manga }>>([]);
+  const flushingRef = useRef<Promise<void> | null>(null);
 
+  const flushBatch = async (force = false) => {
+    if (pendingCommitRef.current.length === 0) return;
+    if (!force && pendingCommitRef.current.length < 10) return;
+    while (flushingRef.current) {
+      await flushingRef.current;
+    }
+    const batch = pendingCommitRef.current.splice(0, pendingCommitRef.current.length);
+    if (batch.length === 0) return;
+    const p = migrateLibraryBatch(batch).finally(() => {
+      flushingRef.current = null;
+    });
+    flushingRef.current = p;
+    await p;
+  };
+
+  // Only list healthy non-broken sources so migrated titles never end up broken again
   const sortedSources = useMemo(
     () =>
-      [...sources].sort((a, b) => {
-        const aPin = settings.pinnedSources.includes(a.name) ? 0 : 1;
-        const bPin = settings.pinnedSources.includes(b.name) ? 0 : 1;
-        if (aPin !== bPin) return aPin - bPin;
-        return a.title.localeCompare(b.title);
-      }),
+      sources
+        .filter((s) => !s.isBroken)
+        .sort((a, b) => {
+          const aPin = settings.pinnedSources.includes(a.name) ? 0 : 1;
+          const bPin = settings.pinnedSources.includes(b.name) ? 0 : 1;
+          if (aPin !== bPin) return aPin - bPin;
+          return a.title.localeCompare(b.title);
+        }),
     [sources, settings.pinnedSources],
   );
 
   const autoTargetPool = useMemo(() => {
     const pinned = settings.pinnedSources.filter((name) =>
-      sources.some((s) => s.name === name && !s.isBroken),
+      sortedSources.some((s) => s.name === name),
     );
-    const extra = sources
-      .filter((s) => !s.isBroken && (s.locale === 'en' || s.locale === ''))
+    const extra = sortedSources
+      .filter((s) => s.locale === 'en' || s.locale === '')
       .slice(0, 6)
       .map((s) => s.name);
     return Array.from(new Set([...pinned, ...extra])).slice(0, 6);
-  }, [sources, settings.pinnedSources]);
+  }, [sortedSources, settings.pinnedSources]);
+
+  const searchOneSource = async (
+    entry: LibraryEntry,
+    engineUrl: string,
+    srcName: string,
+    queries: string[],
+  ): Promise<Manga | null> => {
+    for (const q of queries) {
+      if (stopRef.current) return null;
+      const items = await fetchMangaList(engineUrl, srcName, { query: q }).catch(() => []);
+      const best = pickBestCandidate(entry, items);
+      if (best) {
+        const full = await fetchMangaDetails(engineUrl, best).catch(() => null);
+        if (full) return full;
+        return best;
+      }
+    }
+    return null;
+  };
 
   const migrateSingleEntry = async (entry: LibraryEntry, engineUrl: string): Promise<boolean> => {
     setRowStatus((prev) => ({
@@ -92,37 +150,31 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
     }));
 
     try {
+      const queries = buildSearchQueries(entry);
       let matchedFull: Manga | null = null;
 
-      if (targetMode === 'AUTO') {
-        const pool = autoTargetPool.filter((s) => s !== entry.manga.source);
-        // Sequential wave over top fast working sources with early short-circuit (avoids waiting on 8 slow sources)
+      if (targetMode !== 'AUTO') {
+        matchedFull = await searchOneSource(entry, engineUrl, targetMode, queries);
+      }
+
+      if (!matchedFull && (targetMode === 'AUTO' || fallbackToAuto)) {
+        const pool = autoTargetPool.filter(
+          (s) => s !== entry.manga.source && s !== targetMode,
+        );
         for (const srcName of pool) {
           if (stopRef.current) break;
-          const items = await fetchMangaList(engineUrl, srcName, {
-            query: entry.manga.title,
-          }).catch(() => []);
-          const best = pickBestCandidate(entry, items);
-          if (!best) continue;
-          const full = await fetchMangaDetails(engineUrl, best).catch(() => null);
-          if (full && full.chapters && full.chapters.length > 0) {
-            matchedFull = full;
+          const candidate = await searchOneSource(entry, engineUrl, srcName, queries);
+          if (candidate && candidate.chapters && candidate.chapters.length > 0) {
+            matchedFull = candidate;
             break;
           }
-          if (!matchedFull && full) matchedFull = full;
-        }
-      } else {
-        const list = await fetchMangaList(engineUrl, targetMode, {
-          query: entry.manga.title,
-        }).catch(() => []);
-        const best = pickBestCandidate(entry, list);
-        if (best) {
-          matchedFull = (await fetchMangaDetails(engineUrl, best).catch(() => null)) ?? best;
+          if (!matchedFull && candidate) matchedFull = candidate;
         }
       }
 
       if (matchedFull) {
-        await migrateLibraryManga(entry.key, matchedFull);
+        pendingCommitRef.current.push({ oldKey: entry.key, newManga: matchedFull });
+        await flushBatch(false);
         const srcLabel =
           sources.find((s) => s.name === matchedFull!.source)?.title ?? matchedFull.source;
         setRowStatus((prev) => ({
@@ -160,7 +212,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
     let migratedCount = 0;
     let failedCount = 0;
     let cursor = 0;
-    const workerCount = Math.min(4, queue.length);
+    const workerCount = Math.min(3, queue.length);
 
     const workers = Array.from({ length: workerCount }, async () => {
       while (!stopRef.current) {
@@ -174,6 +226,7 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
     });
 
     await Promise.all(workers);
+    await flushBatch(true);
 
     setRunning(false);
     if (!stopRef.current) {
@@ -224,23 +277,35 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
                 </button>
               </div>
 
-              <div className="border-b border-white/[0.06] bg-white/[0.02] px-5 py-3">
-                <label className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="space-y-2 border-b border-white/[0.06] bg-white/[0.02] px-5 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="font-medium text-zinc-300">Destination Source</span>
-                  <select
+                  <CustomSelect
                     value={targetMode}
                     disabled={running}
-                    onChange={(e) => setTargetMode(e.target.value)}
-                    className="max-w-[260px] rounded-full border border-white/15 bg-black px-3.5 py-1.5 text-xs text-white focus:outline-none cursor-pointer"
-                  >
-                    <option value="AUTO">Auto (Fast Working Sources)</option>
-                    {sortedSources.map((s) => (
-                      <option key={s.name} value={s.name}>
-                        {s.title} ({s.locale ? s.locale.toUpperCase() : 'MULTI'})
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    onChange={setTargetMode}
+                    className="max-w-[260px]"
+                    options={[
+                      { value: 'AUTO', label: 'Auto (Fast Working Sources)' },
+                      ...sortedSources.map((s) => ({
+                        value: s.name,
+                        label: `${s.title} (${s.locale ? s.locale.toUpperCase() : 'MULTI'})`,
+                      })),
+                    ]}
+                  />
+                </div>
+                {targetMode !== 'AUTO' && (
+                  <label className="flex items-center justify-between gap-2 text-[11px] text-zinc-400 cursor-pointer">
+                    <span>Auto-fallback to working sources if not on chosen source</span>
+                    <input
+                      type="checkbox"
+                      checked={fallbackToAuto}
+                      disabled={running}
+                      onChange={(e) => setFallbackToAuto(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-white cursor-pointer"
+                    />
+                  </label>
+                )}
               </div>
 
               <div className="flex-1 space-y-2 overflow-y-auto p-5">
@@ -307,14 +372,15 @@ export function BulkMigrateModal({ open, entries, onClose }: BulkMigrateModalPro
               <div className="flex items-center justify-between gap-2 border-t border-white/[0.08] bg-black/50 px-5 py-3.5">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     stopRef.current = true;
+                    await flushBatch(true);
                     setRunning(false);
                     onClose();
                   }}
-                  className="rounded-full border border-white/15 px-4 py-2 text-xs text-zinc-300 hover:text-white cursor-pointer"
+                  className="inline-flex items-center justify-center rounded-full border border-white/15 px-4 py-2 text-xs leading-none text-zinc-300 hover:text-white cursor-pointer"
                 >
-                  {running ? 'Stop & Close' : 'Close'}
+                  {running ? 'Stop & Save' : 'Close'}
                 </button>
 
                 <button

@@ -19,6 +19,7 @@ import {
 import { useAppStore } from '../store/useAppStore';
 import { useT } from '../utils/i18n';
 import { BulkMigrateModal } from './BulkMigrateModal';
+import { CustomSelect, closeAllPopovers, useClosePopoversListener } from './CustomSelect';
 import { MangaCard } from './MangaCard';
 
 function computeStreakDays(days: string[]): number {
@@ -73,6 +74,7 @@ export function LibraryView() {
   const [showFilters, setShowFilters] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  useClosePopoversListener('library-actions', () => setActionsOpen(false));
   const [newCatName, setNewCatName] = useState('');
   const [addingCat, setAddingCat] = useState(false);
 
@@ -210,7 +212,10 @@ export function LibraryView() {
           </button>
 
           <button
-            onClick={() => setActionsOpen((o) => !o)}
+            onClick={() => {
+              if (!actionsOpen) closeAllPopovers('library-actions');
+              setActionsOpen((o) => !o);
+            }}
             title="More"
             className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-zinc-300 transition hover:border-white/25 hover:text-white cursor-pointer"
           >
@@ -222,10 +227,12 @@ export function LibraryView() {
           </button>
 
           {actionsOpen && (
-            <div
-              onMouseLeave={() => setActionsOpen(false)}
-              className="absolute right-0 top-11 z-40 w-48 overflow-hidden rounded-2xl border border-white/15 bg-[#0C0C10] p-1.5 shadow-2xl"
-            >
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setActionsOpen(false)}
+              />
+              <div className="absolute right-0 top-11 z-40 w-48 overflow-hidden rounded-2xl border border-white/15 bg-[#0C0C10] p-1.5 shadow-2xl">
               <button
                 onClick={() => {
                   setActionsOpen(false);
@@ -257,7 +264,8 @@ export function LibraryView() {
                 <FolderInput className="h-3.5 w-3.5" />
                 <span>{t.library.importFolder}</span>
               </button>
-            </div>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -275,20 +283,20 @@ export function LibraryView() {
             />
           </div>
 
-          <select
+          <CustomSelect
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs text-zinc-200 focus:outline-none cursor-pointer"
-          >
-            <option value="lastRead" className="bg-zinc-950">{t.library.sortLastRead}</option>
-            <option value="unread" className="bg-zinc-950">{t.library.sortUnread}</option>
-            <option value="title" className="bg-zinc-950">{t.library.sortTitle}</option>
-            <option value="added" className="bg-zinc-950">{t.library.sortAdded}</option>
-          </select>
+            onChange={(val) => setSortBy(val as typeof sortBy)}
+            options={[
+              { value: 'lastRead', label: t.library.sortLastRead },
+              { value: 'unread', label: t.library.sortUnread },
+              { value: 'title', label: t.library.sortTitle },
+              { value: 'added', label: t.library.sortAdded },
+            ]}
+          />
 
           <button
             onClick={() => setUnreadOnly((u) => !u)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
+            className={`inline-flex items-center justify-center rounded-full border px-3.5 py-2 text-xs font-medium leading-none transition cursor-pointer ${
               unreadOnly
                 ? 'accent-bg border-white/40'
                 : 'border-white/10 bg-white/[0.04] text-zinc-300 hover:border-white/25 hover:text-white'

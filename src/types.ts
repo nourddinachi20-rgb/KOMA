@@ -233,6 +233,7 @@ export interface AppSettings {
   autoCheckUpdates: boolean;
   githubRepo: string;
   hasCompletedTutorial: boolean;
+  hasSeenWelcome?: boolean;
   lastSeenVersion: string;
   pendingWhatsNewNotes: string;
   syncServerUrl?: string;

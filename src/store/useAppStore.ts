@@ -42,6 +42,7 @@ import {
 } from '../utils/syncClient';
 import { restoreSyncCredentials, type SyncCredentials } from '../utils/syncCrypto';
 import { applyCustomizationToDocument } from '../utils/theme';
+import { closeAllPopovers } from '../components/CustomSelect';
 
 export const HOUR_MS = 60 * 60 * 1000;
 
@@ -150,6 +151,7 @@ interface AppState {
   markChapterRead: (manga: Manga, chapterId: string, read?: boolean, chapterNumber?: number) => Promise<void>;
   markPreviousChaptersRead: (manga: Manga, upToChapterId: string) => Promise<void>;
   migrateLibraryManga: (oldKey: string, newManga: Manga) => Promise<void>;
+  migrateLibraryBatch: (pairs: Array<{ oldKey: string; newManga: Manga }>) => Promise<void>;
   recordReadingPulse: (pagesDelta: number, chapterCompleted: boolean, tags?: string[]) => Promise<void>;
   refreshTracker: () => Promise<void>;
   refreshAllData: () => Promise<void>;
@@ -207,6 +209,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoCheckUpdates: true,
   githubRepo: 'nourddinachi20-rgb/KOMA',
   hasCompletedTutorial: false,
+  hasSeenWelcome: false,
   lastSeenVersion: '',
   pendingWhatsNewNotes: '',
   syncServerUrl: '',
@@ -413,17 +416,39 @@ export const useAppStore = create<AppState>((set, get) => ({
   dismissToast: (id) =>
     set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
-  setActiveView: (activeView) => set({ activeView }),
-  setExploreSource: (exploreSource) => set({ exploreSource, activeView: 'explore' }),
-  openManga: (selectedManga) => set({ selectedManga }),
-  closeManga: () => set({ selectedManga: null }),
-  openReader: (readerSession) => set({ readerSession }),
+  setActiveView: (activeView) => {
+    closeAllPopovers();
+    set({ activeView });
+  },
+  setExploreSource: (exploreSource) => {
+    closeAllPopovers();
+    set({ exploreSource, activeView: 'explore' });
+  },
+  openManga: (selectedManga) => {
+    closeAllPopovers();
+    set({ selectedManga });
+  },
+  closeManga: () => {
+    closeAllPopovers();
+    set({ selectedManga: null });
+  },
+  openReader: (readerSession) => {
+    closeAllPopovers();
+    set({ readerSession });
+  },
   closeReader: () => {
+    closeAllPopovers();
     set({ readerSession: null });
     void window.noctis.clearDiscord();
   },
-  setCommandOpen: (commandOpen) => set((s) => ({ commandOpen, commandQuery: commandOpen ? s.commandQuery : '' })),
-  openCommandWithQuery: (commandQuery) => set({ commandOpen: true, commandQuery }),
+  setCommandOpen: (commandOpen) => {
+    if (commandOpen) closeAllPopovers();
+    set((s) => ({ commandOpen, commandQuery: commandOpen ? s.commandQuery : '' }));
+  },
+  openCommandWithQuery: (commandQuery) => {
+    closeAllPopovers();
+    set({ commandOpen: true, commandQuery });
+  },
 
   setFilterCache: (source, meta) =>
     set((s) => ({ filtersCache: { ...s.filtersCache, [source]: meta } })),
@@ -675,8 +700,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       validHomeCache!.hourEpoch === currentHour &&
       Date.now() - (validHomeCache!.savedAt ?? 0) < 20 * 60 * 1000;
 
-    const needsTutorial = !settings.hasCompletedTutorial;
-    const needsWhatsNew = !needsTutorial && settings.lastSeenVersion !== appVersion;
     const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
     applyCustomizationToDocument(mergedSettings);
 
@@ -693,6 +716,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         restoredSync = null;
       }
     }
+
+    const welcomeDone = Boolean(mergedSettings.hasSeenWelcome || restoredSync);
+    const needsTutorial = welcomeDone && !settings.hasCompletedTutorial;
+    const needsWhatsNew = welcomeDone && !needsTutorial && settings.lastSeenVersion !== appVersion;
 
     set({
       categories,
@@ -984,6 +1011,84 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (shouldUpdateSelected) {
       get().notify(`Migrated to ${newFull.source}`, 'success');
     }
+    scheduleAutoSync();
+  },
+
+  migrateLibraryBatch: async (pairs) => {
+    if (pairs.length === 0) return;
+    const state = get();
+    const libMap = new Map<string, LibraryEntry>();
+    for (const e of state.library) libMap.set(e.key, e);
+    const histMap = new Map<string, HistoryEntry>();
+    for (const h of state.history) histMap.set(h.key, h);
+    const nextFailed = { ...state.failedSourceKeys };
+    const defaultCat = state.categories[0]?.id ?? 'reading';
+    const now = Date.now();
+
+    for (const { oldKey, newManga } of pairs) {
+      const oldEntry = libMap.get(oldKey);
+      const oldHist = histMap.get(oldKey);
+      const newChapters = newManga.chapters ?? [];
+
+      const readChapterIds: string[] = [];
+      if (oldEntry?.readChapterIds?.length) {
+        const oldChapters = oldEntry.manga.chapters ?? [];
+        const readNums = new Set(
+          oldChapters
+            .filter((c) => oldEntry.readChapterIds!.includes(c.id))
+            .map((c) => c.number),
+        );
+        for (const ch of newChapters) {
+          if (readNums.has(ch.number)) readChapterIds.push(ch.id);
+        }
+      }
+
+      const newKey = `${newManga.source}::${newManga.id}`;
+      const newEntry: LibraryEntry = {
+        key: newKey,
+        manga: newManga,
+        categoryIds: oldEntry?.categoryIds ?? [defaultCat],
+        addedAt: oldEntry?.addedAt ?? now,
+        lastReadAt: now,
+        totalChapters: newChapters.length,
+        knownChapterIds: newChapters.map((c) => c.id),
+        readChapterIds,
+        unreadCount: newChapters.filter((c) => !readChapterIds.includes(c.id)).length,
+      };
+
+      libMap.delete(oldKey);
+      libMap.set(newKey, newEntry);
+      delete nextFailed[oldKey];
+      delete nextFailed[newKey];
+
+      if (oldHist) {
+        const matched =
+          newChapters.find((c) => c.number === oldHist.chapterNumber) ?? newChapters[0];
+        if (matched) {
+          histMap.delete(oldKey);
+          histMap.set(newKey, {
+            key: newKey,
+            manga: newManga,
+            chapterId: matched.id,
+            chapterNumber: matched.number,
+            chapterTitle: matched.title || `Chapter ${matched.number || ''}`,
+            pageIndex: oldHist.pageIndex,
+            totalPages: oldHist.totalPages,
+            updatedAt: now,
+          });
+        }
+      }
+    }
+
+    const nextLibrary = Array.from(libMap.values());
+    const nextHistory = Array.from(histMap.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+
+    await window.noctis.applyBackupData({
+      categories: state.categories,
+      library: nextLibrary,
+      history: nextHistory,
+    });
+    set({ library: nextLibrary, history: nextHistory, failedSourceKeys: nextFailed });
     scheduleAutoSync();
   },
 

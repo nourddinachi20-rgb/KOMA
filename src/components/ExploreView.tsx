@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import type { Manga, MangaTag, SortOrder } from '../types';
 import { fetchMangaList, fetchSourceFilters, updateSourceDomain } from '../utils/api';
 import { useT } from '../utils/i18n';
+import { CustomSelect } from './CustomSelect';
 import { MangaCard } from './MangaCard';
 
 export function ExploreView() {
@@ -313,43 +314,35 @@ export function ExploreView() {
             </form>
 
             {filterMeta && filterMeta.sortOrders.length > 0 && (
-              <select
+              <CustomSelect
                 value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-                className="rounded-full border border-white/10 bg-white/[0.05] px-3.5 py-1.5 text-xs text-zinc-200 focus:outline-none cursor-pointer"
-              >
-                {filterMeta.sortOrders.map((o) => (
-                  <option key={o} value={o} className="bg-zinc-950">
-                    {o.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setSortOrder(v as SortOrder)}
+                options={filterMeta.sortOrders.map((o) => ({
+                  value: o,
+                  label: o.replace(/_/g, ' '),
+                }))}
+              />
             )}
 
             {filterMeta && filterMeta.domains.length > 1 && (
-              <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs text-zinc-300">
-                <Globe className="h-3.5 w-3.5 text-zinc-400" />
-                <select
-                  value={filterMeta.domain}
-                  onChange={async (e) => {
-                    if (!engineStatus.url) return;
-                    const newDom = await updateSourceDomain(
-                      engineStatus.url,
-                      exploreSource,
-                      e.target.value,
-                    );
-                    setFilterCache(exploreSource, { ...filterMeta, domain: newDom });
-                    void loadList(0, false, true);
-                  }}
-                  className="bg-transparent text-xs text-white focus:outline-none cursor-pointer"
-                >
-                  {filterMeta.domains.map((d) => (
-                    <option key={d} value={d} className="bg-zinc-950">
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <CustomSelect
+                value={filterMeta.domain}
+                prefixIcon={<Globe className="h-3.5 w-3.5 text-zinc-400" />}
+                onChange={async (dom) => {
+                  if (!engineStatus.url) return;
+                  const newDom = await updateSourceDomain(
+                    engineStatus.url,
+                    exploreSource,
+                    dom,
+                  );
+                  setFilterCache(exploreSource, { ...filterMeta, domain: newDom });
+                  void loadList(0, false, true);
+                }}
+                options={filterMeta.domains.map((d) => ({
+                  value: d,
+                  label: d,
+                }))}
+              />
             )}
 
             {filterMeta && filterMeta.availableTags.length > 0 && (

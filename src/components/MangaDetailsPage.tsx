@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRightLeft,
   Bookmark,
+  BookOpen,
   Check,
   CheckCheck,
   ChevronLeft,
@@ -22,6 +23,7 @@ import { useAppStore } from '../store/useAppStore';
 import type { AniListMediaInfo, Manga, MangaChapter } from '../types';
 import { getProxiedImageUrl } from '../utils/api';
 import { extractAmbientColor } from '../utils/colorExtractor';
+import { CustomSelect } from './CustomSelect';
 import { DownloadModal } from './DownloadModal';
 import { MigrateModal } from './MigrateModal';
 
@@ -60,6 +62,7 @@ export function MangaDetailsPage() {
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [expandDesc, setExpandDesc] = useState(false);
   const [migrateOpen, setMigrateOpen] = useState(false);
+  const [coverTryIdx, setCoverTryIdx] = useState(0);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -210,11 +213,20 @@ export function MangaDetailsPage() {
 
   if (!manga) return null;
 
-  const coverUrl = getProxiedImageUrl(
-    engineStatus.url,
-    manga.source,
-    manga.largeCoverUrl || manga.coverUrl,
-  );
+  const rawPrimaryCover = manga.largeCoverUrl || manga.coverUrl || '';
+  const rawSecondaryCover =
+    manga.coverUrl && manga.coverUrl !== rawPrimaryCover ? manga.coverUrl : '';
+  const proxiedPrimary = getProxiedImageUrl(engineStatus.url, manga.source, rawPrimaryCover);
+  const proxiedSecondary = rawSecondaryCover
+    ? getProxiedImageUrl(engineStatus.url, manga.source, rawSecondaryCover)
+    : '';
+  const coverCandidates = [
+    proxiedPrimary,
+    proxiedPrimary && proxiedPrimary.includes('/api/image?') ? `${proxiedPrimary}&r=1` : '',
+    proxiedSecondary,
+    rawPrimaryCover.startsWith('http') ? rawPrimaryCover : '',
+  ].filter(Boolean);
+  const coverUrl = coverCandidates[coverTryIdx] ?? '';
   const bannerBackdrop =
     anilist?.bannerImage ||
     getProxiedImageUrl(engineStatus.url, manga.source, manga.coverUrl || manga.largeCoverUrl);
@@ -337,38 +349,55 @@ export function MangaDetailsPage() {
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
           <div className="w-52 shrink-0 self-center sm:w-60 lg:self-start">
             <div className="aspect-[2/3] overflow-hidden rounded-2xl border border-white/20 bg-zinc-950 shadow-[0_28px_80px_rgba(0,0,0,0.95)]">
-              {coverUrl && (
+              {coverUrl ? (
                 <img
                   src={coverUrl}
-                  alt={manga.title}
+                  alt=""
                   decoding="async"
+                  referrerPolicy="no-referrer"
+                  onError={() => {
+                    if (coverTryIdx + 1 < coverCandidates.length) {
+                      setCoverTryIdx((i) => i + 1);
+                    } else {
+                      setCoverTryIdx(coverCandidates.length);
+                    }
+                  }}
                   className="h-full w-full object-cover"
                 />
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-4 text-center text-zinc-600">
+                  <BookOpen className="h-8 w-8 opacity-40" />
+                  <span className="line-clamp-3 text-xs font-medium text-zinc-500">
+                    {manga.title}
+                  </span>
+                </div>
               )}
             </div>
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono-tech uppercase tracking-wider text-zinc-300">
-              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-white">
+              <span className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/10 px-3 py-1 leading-none text-white">
                 {manga.source.replace(/_/g, ' ')}
               </span>
               {manga.state && (
-                <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1">
+                <span className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 leading-none">
                   {manga.state}
                 </span>
               )}
               {(manga.rating > 0 || anilist?.averageScore) && (
-                <span className="flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-zinc-200">
-                  <Star className="h-3 w-3 fill-white text-white" />
-                  {manga.rating > 0
-                    ? (manga.rating * 10).toFixed(1)
-                    : `${((anilist?.averageScore ?? 0) / 10).toFixed(1)} AL`}
+                <span className="inline-flex items-center justify-center gap-1 rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 leading-none text-zinc-200">
+                  <Star className="h-3 w-3 shrink-0 fill-white text-white" />
+                  <span>
+                    {manga.rating > 0
+                      ? (manga.rating * 10).toFixed(1)
+                      : `${((anilist?.averageScore ?? 0) / 10).toFixed(1)} AL`}
+                  </span>
                 </span>
               )}
-              <span className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1">
-                <Layers className="h-3 w-3 text-zinc-400" />
-                {ascendingChapters.length} Chapters
+              <span className="inline-flex items-center justify-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 leading-none">
+                <Layers className="h-3 w-3 shrink-0 text-zinc-400" />
+                <span>{ascendingChapters.length} Chapters</span>
               </span>
             </div>
 
@@ -530,17 +559,11 @@ export function MangaDetailsPage() {
 
             <div className="flex flex-wrap items-center gap-2">
               {branches.length > 1 && (
-                <select
-                  value={selectedBranch ?? ''}
-                  onChange={(e) => setSelectedBranch(e.target.value || null)}
-                  className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs text-zinc-200 focus:outline-none"
-                >
-                  {branches.map((b) => (
-                    <option key={b} value={b} className="bg-zinc-950">
-                      {b}
-                    </option>
-                  ))}
-                </select>
+                <CustomSelect
+                  value={selectedBranch ?? branches[0]}
+                  onChange={(v) => setSelectedBranch(v || null)}
+                  options={branches.map((b) => ({ value: b, label: b }))}
+                />
               )}
 
               <div className="relative">

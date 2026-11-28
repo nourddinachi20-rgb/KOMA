@@ -46,15 +46,23 @@ export const MangaCard = memo(function MangaCard({
   const libEntry = library.find((e) => e.key === key);
   const inLibrary = Boolean(libEntry);
   const unread = libEntry?.unreadCount ?? 0;
-  const baseCoverSrc = getProxiedImageUrl(
-    engineStatus.url,
-    manga.source,
-    manga.coverUrl || manga.largeCoverUrl,
-  );
-  const coverSrc =
-    baseCoverSrc && retryCount > 0 && baseCoverSrc.includes('/api/image?')
-      ? `${baseCoverSrc}&r=${retryCount}`
-      : baseCoverSrc;
+
+  const primaryUrl = manga.coverUrl || manga.largeCoverUrl || '';
+  const secondaryUrl =
+    manga.largeCoverUrl && manga.largeCoverUrl !== primaryUrl ? manga.largeCoverUrl : '';
+  const proxiedPrimary = getProxiedImageUrl(engineStatus.url, manga.source, primaryUrl);
+  const proxiedSecondary = secondaryUrl
+    ? getProxiedImageUrl(engineStatus.url, manga.source, secondaryUrl)
+    : '';
+
+  const candidateSrcs = [
+    proxiedPrimary,
+    proxiedPrimary && proxiedPrimary.includes('/api/image?') ? `${proxiedPrimary}&r=1` : '',
+    proxiedSecondary,
+    primaryUrl.startsWith('http') ? primaryUrl : '',
+  ].filter(Boolean);
+
+  const coverSrc = candidateSrcs[retryCount] ?? '';
 
   useEffect(() => {
     if (retryTimerRef.current) {
@@ -70,11 +78,21 @@ export const MangaCard = memo(function MangaCard({
         retryTimerRef.current = null;
       }
     };
-  }, [baseCoverSrc]);
+  }, [proxiedPrimary, primaryUrl]);
+
+  useEffect(() => {
+    if (!imgError) return;
+    const onOnline = () => {
+      setImgError(false);
+      setRetryCount(0);
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [imgError]);
 
   const handleImgError = () => {
-    if (retryCount < 3 && baseCoverSrc) {
-      const delayMs = 900 * (retryCount + 1);
+    if (retryCount + 1 < candidateSrcs.length) {
+      const delayMs = 350 * (retryCount + 1);
       retryTimerRef.current = window.setTimeout(() => {
         setRetryCount((c) => c + 1);
       }, delayMs);
@@ -131,15 +149,16 @@ export const MangaCard = memo(function MangaCard({
       >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-white/[0.08] bg-[#0a0a0d] transition-colors duration-200 group-hover:border-white/25">
         {!imgLoaded && !imgError && (
-          <div className="absolute inset-0 bg-white/[0.03]" />
+          <div className="absolute inset-0 animate-pulse bg-white/[0.04]" />
         )}
 
         {coverSrc && !imgError ? (
           <img
             src={coverSrc}
-            alt={manga.title}
-            loading="lazy"
+            alt=""
+            loading="eager"
             decoding="async"
+            referrerPolicy="no-referrer"
             onLoad={() => setImgLoaded(true)}
             onError={handleImgError}
             className={`h-full w-full object-cover transition-opacity duration-300 ${
@@ -147,7 +166,7 @@ export const MangaCard = memo(function MangaCard({
             }`}
           />
         ) : !coverSrc && (manga.coverUrl || manga.largeCoverUrl) ? (
-          <div className="flex h-full w-full items-center justify-center bg-[#0a0a0d]" />
+          <div className="flex h-full w-full animate-pulse items-center justify-center bg-white/[0.04]" />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-4 text-center text-zinc-600">
             <BookOpen className="h-7 w-7 opacity-40" />

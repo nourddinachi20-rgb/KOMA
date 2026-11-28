@@ -16,6 +16,7 @@ import type { UiLanguage, UiTheme } from '../types';
 import { useT } from '../utils/i18n';
 import { DEFAULT_SYNC_SERVER_URL } from '../utils/syncClient';
 import { ACCENT_PRESETS } from '../utils/theme';
+import { CustomSelect } from './CustomSelect';
 
 type SectionKey = 'account' | 'appearance' | 'reader' | 'backup' | 'trackers' | 'about';
 
@@ -500,17 +501,14 @@ export function SettingsView() {
                   <div className="text-sm text-zinc-200">{t.settings.preloadPages}</div>
                   <div className="text-xs text-zinc-500">{t.settings.preloadPagesDesc}</div>
                 </div>
-                <select
-                  value={settings.preloadCount}
-                  onChange={(e) => updateSettings({ preloadCount: Number(e.target.value) })}
-                  className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs text-white focus:outline-none"
-                >
-                  {[2, 4, 6, 8, 12].map((n) => (
-                    <option key={n} value={n} className="bg-zinc-950">
-                      {n} pages
-                    </option>
-                  ))}
-                </select>
+                <CustomSelect
+                  value={String(settings.preloadCount)}
+                  onChange={(v) => updateSettings({ preloadCount: Number(v) })}
+                  options={[2, 4, 6, 8, 12].map((n) => ({
+                    value: String(n),
+                    label: `${n} pages`,
+                  }))}
+                />
               </div>
 
               <div className="flex items-center justify-between gap-4 border-t border-white/[0.06] pt-4">
