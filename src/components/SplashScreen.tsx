@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
 import { getProxiedImageUrl } from '../utils/api';
@@ -12,13 +12,21 @@ const STAGE_PROGRESS = {
   ready: 100,
 } as const;
 
-const MIN_INTRO_MS = 3400;
+const MIN_INTRO_MS = 2800;
 
 export function SplashScreen() {
-  const { bootStage, engineStatus, sources, homeHeroItems, homeRows, library } = useAppStore();
+  const { bootStage, engineStatus, sources, homeHeroItems, homeRows, library, settings, syncSession } =
+    useAppStore();
   const t = useT();
   const [ssdCovers, setSsdCovers] = useState<string[]>([]);
   const [minIntroDone, setMinIntroDone] = useState(false);
+  const welcomeShownRef = useRef(false);
+
+  const showingWelcome =
+    bootStage !== 'hydrating' && !syncSession && !settings.hasSeenWelcome;
+  if (showingWelcome) {
+    welcomeShownRef.current = true;
+  }
 
   useEffect(() => {
     void window.noctis
@@ -68,7 +76,12 @@ export function SplashScreen() {
   }, [coverPool]);
 
   const engineDone = bootStage === 'ready';
-  const visible = !(engineDone && minIntroDone);
+  // If user came through the Welcome page, skip any extra timer delay and only finish remaining engine boot
+  const visible = showingWelcome
+    ? false
+    : welcomeShownRef.current
+      ? !engineDone
+      : !(engineDone && minIntroDone);
   const progress = STAGE_PROGRESS[bootStage];
   const stageLabel = t.splash[bootStage];
 
@@ -153,7 +166,7 @@ export function SplashScreen() {
                 transition={{ duration: 1.8, times: [0, 0.45, 1], ease: 'easeOut' }}
                 className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-white/40"
               />
-              <KomaLogo className="h-16 w-16" />
+              <KomaLogo animated className="h-16 w-16" />
             </motion.div>
 
             <motion.div

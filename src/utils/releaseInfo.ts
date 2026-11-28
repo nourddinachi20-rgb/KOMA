@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.0.6';
+export const APP_VERSION = '1.0.7';
 
 export interface ChangelogSection {
   title: string;
@@ -6,14 +6,9 @@ export interface ChangelogSection {
   items: string[];
 }
 
-export const DEFAULT_WHATS_NEW_NOTES = `### New Features
-- **Welcome Account Screen:** On first launch, sign in, create an encrypted account, or continue as a guest cleanly before entering KOMA.
-- **In-App Dropdowns:** Replaced all native Android system select popups with unified dark/light KOMA menus with centered text and arrows.
-
-### Fixes
-- **Crash-Proof Batch Migration:** Added storage mutex locks, atomic file writes, and working-source filtering with alt-title fallback so large migrations never crash or leave titles marked Broken.
-- **Reliable Cover Loading:** Upgraded proxy retries with origin referer fallbacks and direct cover fallbacks so covers never stall empty or show broken image icons.
-- **Quality of Life:** Opening Search, switching views, or tapping outside now auto-closes any open dropdown or popup menu.`;
+export const DEFAULT_WHATS_NEW_NOTES = `### Improvements
+- **Full-Page Welcome & Animated Logo:** Minimal black full-screen Sign In / Create Account / Guest welcome page with smooth geometric KOMA logo animation.
+- **Instant Background Startup:** Engine startup and feed warming now run silently behind the welcome screen so signing in or continuing as guest enters KOMA immediately.`;
 
 export function parseChangelogSections(rawMarkdown?: string | null): ChangelogSection[] {
   const source = rawMarkdown?.trim() ? rawMarkdown : DEFAULT_WHATS_NEW_NOTES;
